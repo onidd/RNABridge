@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: rnabridge
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: rnabridge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://rnabridge:password123@db:5432/rnabridge
+      - RNABRIDGE_CIF_DIR=/app/cif
+      - RNABRIDGE_JSON_DIR=/app/json
+      - RNABRIDGE_RESULTS_DIR=/app/analyze
+      - RNABRIDGE_OUTPUT_DIR=/app/result
+      - X3DNA=/app/x3dna-v2.4
+    depends_on:
+      - db
+    volumes:
+      - ./cif:/app/cif
+      - ./json:/app/json
+      - ./analyze:/app/analyze
+      - ./result:/app/result
+      - ./x3dna-v2.4:/app/x3dna-v2.4
+
+volumes:
+  postgres_data:

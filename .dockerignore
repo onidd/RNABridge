@@ -1,0 +1,17 @@
+.git
+.gitignore
+frontend/node_modules
+frontend/dist
+**/__pycache__
+*.pyc
+venv
+.env
+.ipynb_checkpoints
+rnabridge.db
+x3dna-v2.4/
+cif/*
+!cif/.gitkeep
+json/*
+analyze/*
+result/*
+frontend/package-lock.json

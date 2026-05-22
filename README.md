@@ -21,9 +21,32 @@ RNABridge is a professional tool for analyzing RNA structural motifs, identifyin
 | **PyMOL** | 3D Processing | Recommended (installed via Conda or system) |
 | **Java** | Visualizations | Required for VARNA/cli2rest-bio SVG generation |
 
-## Installation
+## Quick Start with Docker (Recommended)
 
-### 1. Backend Setup
+The easiest way to run RNABridge is using Docker Compose. This packages the backend, frontend, and a PostgreSQL database into a single environment.
+
+### 1. Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- **X3DNA (v2.4)**: Place your X3DNA distribution in the root directory as `x3dna-v2.4/`.
+
+### 2. Launch
+```bash
+# Build and start all services
+docker-compose up --build
+```
+Once started, the application is available at:
+- **Web Interface**: [http://localhost:8000](http://localhost:8000)
+- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### 3. Run Analysis inside Docker
+To process new `.cif` files placed in the `cif/` directory:
+```bash
+docker-compose exec app bash pipeline.sh
+```
+
+---
+
+## Manual Installation (Alternative)
 The easiest way to set up the backend is using Conda:
 ```bash
 # Create and activate the environment
