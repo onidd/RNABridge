@@ -21,44 +21,66 @@ RNABridge is a professional tool for analyzing RNA structural motifs, identifyin
 | **PyMOL** | 3D Processing | Recommended (installed via Conda or system) |
 | **Java** | Visualizations | Required for VARNA/cli2rest-bio SVG generation |
 
-## Quick Start with Docker (Recommended)
+## Installation Methods
 
-The easiest way to run RNABridge is using Docker Compose. This packages the backend, frontend, and a PostgreSQL database into a single environment.
+You can set up RNABridge using one of the following three methods, depending on your environment and needs.
 
-### 1. Prerequisites
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-- **X3DNA (v2.4)**: Place your X3DNA distribution in the root directory as `x3dna-v2.4/`.
+### Method A: Quick Start with Docker (Recommended)
+This is the easiest way to run the full stack (Backend, Frontend, and PostgreSQL) in a single command.
 
-### 2. Launch
-```bash
-# Build and start all services
-docker-compose up --build
-```
-Once started, the application is available at:
-- **Web Interface**: [http://localhost:8000](http://localhost:8000)
-- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+1. **Prerequisites**: [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
+2. **Setup**: Place your X3DNA distribution in `x3dna-v2.4/`.
+3. **Launch**:
+   ```bash
+   docker-compose up --build
+   ```
+4. **Access**: Web Interface at `http://localhost:8000`.
 
-### 3. Run Analysis inside Docker
-To process new `.cif` files placed in the `cif/` directory:
+---
+
+### Method B: Conda Environment (Scientific Dev)
+Recommended if you want to run the pipeline locally and use PyMOL without worrying about system dependencies.
+
+1. **Setup**:
+   ```bash
+   conda env create -f environment.yml
+   conda activate rnabridge
+   ```
+2. **Frontend**:
+   ```bash
+   cd frontend && npm install && npm run build
+   ```
+3. **Launch**: `python api.py`
+
+---
+
+### Method C: Pip + Manual Setup (Advanced)
+For users who prefer a standard Python environment and manual database management.
+
+1. **Setup**:
+   ```bash
+   pip install -r requirements.txt
+   # Ensure PyMOL and Java are installed on your system
+   ```
+2. **Database**: The system defaults to **SQLite** (`rnabridge.db`). To use PostgreSQL, set the `DATABASE_URL` environment variable.
+3. **Launch**: `uvicorn api:app --host 0.0.0.0 --port 8000`
+
+---
+
+## Usage
+
+### 1. Run Analysis Pipeline
+Place your `.cif` files in the `cif/` directory.
+
+**Using Docker**:
 ```bash
 docker-compose exec app bash pipeline.sh
 ```
 
----
-
-## Manual Installation (Alternative)
-The easiest way to set up the backend is using Conda:
+**Using Local Python**:
 ```bash
-# Create and activate the environment
-conda env create -f environment.yml
-conda activate rnabridge
-```
-Alternatively, use pip: `pip install -r requirements.txt`
-
-### 2. Frontend Setup
-```bash
-cd frontend
-npm install
+chmod +x pipeline.sh
+./pipeline.sh
 ```
 
 ### 3. External Tools
