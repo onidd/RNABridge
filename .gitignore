@@ -21,7 +21,7 @@ x3dna-v2.4/
 # cif/ folder - Keep the directory but ignore bulk data except for an example
 cif/*
 !cif/.gitkeep
-!cif/5FJ0.cif
+!cif/8XTP.cif
 
 # IDE & OS
 .vscode/
