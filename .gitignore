@@ -18,12 +18,10 @@ result/
 # X3DNA is excluded due to licensing. User must provide it manually in x3dna-v2.4/
 x3dna-v2.4/
 
-# cif/ folder - Keep the directory but ignore bulk data except for examples
+# cif/ folder - Keep the directory but ignore bulk data except for an example
 cif/*
 !cif/.gitkeep
 !cif/8XTP.cif
-!cif/8K0S.cif
-!cif/6NMA.cif
 
 # IDE & OS
 .vscode/
