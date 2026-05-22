@@ -6,85 +6,76 @@ RNABridge is a professional tool for analyzing RNA structural motifs, identifyin
 
 - **Centralized Core**: All logic (geometry, stacking, visualization) is powered by the `rnabridge.py` library.
 - **Optimized Pipeline**: A high-performance, single-pass analysis script (`analyze.py`) replaces redundant intermediate steps.
-- **Automated Configuration**: Centralized `config.py` handles environment variables, database switching (PostgreSQL/SQLite), and automatic X3DNA path detection.
-- **Rich Visualizations**: Automatically generates SVG diagrams via VARNA and high-quality PML scripts for PyMOL.
-- **API Ready**: Built-in FastAPI server for searching and serving structural data to front-end applications.
+- **Automated Configuration**: Centralized `config.py` handles environment variables and automatic database switching (PostgreSQL/SQLite).
+- **Rich Visualizations**: Automatically generates SVG diagrams and high-quality PML scripts for PyMOL.
+- **Full Stack Solution**: Includes a FastAPI backend and a modern React frontend for data exploration.
 
-## Prerequisites
+## Requirements
 
-- **Python 3.12+**
-- **Conda** (strongly recommended for PyMOL management)
-- **Java** (required for VARNA/cli2rest-bio SVG generation)
-- **X3DNA (v2.4)** (should be placed in the `x3dna-v2.4/` directory within the project root)
+| Tool | Purpose | Note |
+| :--- | :--- | :--- |
+| **Python 3.12+** | Main Logic | Required |
+| **X3DNA (v2.4)** | Helix Analysis | **User must provide manually** in `x3dna-v2.4/` directory |
+| **Docker** | Visualizations | Required for `cli2rest-bio` (VARNA) |
+| **Node.js** | Frontend | Required to run the web interface |
+| **PyMOL** | 3D Processing | Recommended (installed via Conda or system) |
 
 ## Installation
 
-The easiest way to set up RNABridge is using the provided Conda environment file:
-
+### 1. Backend Setup
+The easiest way to set up the backend is using Conda:
 ```bash
 # Create and activate the environment
 conda env create -f environment.yml
 conda activate rnabridge
 ```
+Alternatively, use pip: `pip install -r requirements.txt`
 
-Alternatively, using `pip` (requires manual PyMOL installation):
+### 2. Frontend Setup
 ```bash
-pip install -r requirements.txt
+cd frontend
+npm install
+```
+
+### 3. External Tools
+Place the X3DNA distribution in the root directory:
+```text
+RNABridge/
+├── x3dna-v2.4/  <-- Place X3DNA here
+├── analyze.py
+└── ...
 ```
 
 ## Usage
 
-### 1. Full Pipeline
-To run the entire analysis process (downloading, annotation, analysis, and visualization):
+### 1. Run Analysis Pipeline
+Place your `.cif` files in the `cif/` directory and run:
 ```bash
+chmod +x pipeline.sh
 ./pipeline.sh
 ```
 
-### 2. Manual Steps
-You can also run individual components:
+### 2. Start the API Server
 ```bash
-# Synchronize local data with RCSB PDB
-python fetch_pdb.py
-
-# Analyze a specific RNA structure
-python analyze.py json/XXXX.json analyze2/XXXX.json cif/XXXX.cif
-
-# Generate visualizations
-python categorize.py
-
-# Update the database
-python database.py
-
-# Start the API server
 python api.py
 ```
 
-## API Documentation
+### 3. Launch Web Interface
+```bash
+cd frontend
+npm run dev
+```
+The interface will be available at `http://localhost:5173`.
 
-Once the API server is running (`python api.py`), you can access the interactive API documentation at:
+## Database Configuration
 
-- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) – interactive playground to test the endpoints.
-- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc) – clean, structured documentation.
-
-## Configuration
-
-All system parameters, including directory paths and geometric thresholds (e.g., `MAX_BEND_ANGLE`), are managed in `config.py`. 
-
-### Production Environment (PostgreSQL)
-To use PostgreSQL instead of the default SQLite, set the `DATABASE_URL` environment variable:
+The system uses **SQLite** by default. It automatically switches to **PostgreSQL** if the `DATABASE_URL` environment variable is detected:
 ```bash
 export DATABASE_URL="postgresql://user:password@localhost:5432/rnabridge"
 ```
 
-## Project Structure
+## Data Sources & Licensing
 
-- `rnabridge.py`: The heart of the system (Classes: Utils, Core, Stacking, Geometry, Visualizer).
-- `analyze.py`: Combined motif classification and super-helix building.
-- `categorize.py`: Logic for grouping results and triggering 2D/3D exports.
-- `api.py`: FastAPI server for data access.
-- `config.py`: Centralized settings and environment management.
-- `cif/`, `json/`, `analyze/`, `result/`: Automated data storage directories.
-
-## License
-
-This project is intended for research and educational purposes. Ensure compliance with RCSB PDB and X3DNA license agreements.
+- **RCSB PDB**: Structural data is fetched from the [RCSB Protein Data Bank](https://www.rcsb.org/). Use of this data must comply with their terms.
+- **X3DNA**: This project requires X3DNA for geometric calculations. Users are responsible for obtaining a valid license from [x3dna.org](http://x3dna.org/) before use.
+- **Disclaimer**: This tool is for research and educational purposes. The authors are not responsible for the licensing of third-party tools required to run the software.
