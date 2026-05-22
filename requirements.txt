@@ -1,0 +1,17 @@
+# --- RNABridge Dependencies ---
+# IMPORTANT: If not using Conda, PyMOL must be installed manually 
+# via system package manager (e.g., sudo apt install pymol).
+
+fastapi>=0.110
+uvicorn>=0.30
+sqlalchemy>=2.0
+numpy>=2.0
+requests>=2.30
+pydantic-settings>=2.0
+python-dotenv>=1.0
+PyYAML>=6.0
+aiofiles
+python-multipart
+rnapolis
+psycopg2-binary
+cli2rest-bio @ git+https://github.com/tzok/cli2rest-bio@7b1903b974eb0877582ef2acd45199111bbba5e8

@@ -1,0 +1,23 @@
+name: rnabridge
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.12
+  - numpy>=2.0
+  - sqlalchemy>=2.0
+  - requests>=2.30
+  - pyyaml>=6.0
+  - pymol-open-source>=3.1
+  - pyqt>=5.15
+  - pip
+  - pip:
+      - fastapi>=0.110
+      - uvicorn>=0.30
+      - pydantic-settings>=2.0
+      - python-dotenv>=1.0
+      - aiofiles
+      - python-multipart
+      - rnapolis
+      - psycopg2-binary
+      - cli2rest-bio @ git+https://github.com/tzok/cli2rest-bio@7b1903b974eb0877582ef2acd45199111bbba5e8

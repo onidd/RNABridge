@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Databases
+*.db
+
+# Data
+# Ignore generated analysis results based on the actual project structure
+json/
+analyze/
+result/
+
+# External Tools
+# X3DNA is excluded due to licensing. User must provide it manually in x3dna-v2.4/
+x3dna-v2.4/
+
+# cif/ folder - Keep the directory but ignore bulk data except for an example
+cif/*
+!cif/.gitkeep
+!cif/5FJ0.cif
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

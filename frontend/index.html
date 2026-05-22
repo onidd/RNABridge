@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RNABridge</title>
+    <style>
+      /* Styl dla samego obrazka */
+      .ant-image-preview-img {
+        background-color: #ffffff !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 0 30px rgba(0,0,0,0.5) !important;
+      }
+      /* Styl dla paska narzędzi (powiększanie, obracanie) */
+      .ant-image-preview-operations {
+        background-color: #000000 !important; /* Całkowicie czarny */
+        color: #ffffff !important;
+        border-radius: 10px !important;
+        padding: 10px 20px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8) !important;
+        opacity: 1 !important; /* Wymuszamy pełną widoczność */
+      }
+      /* Styl dla samych ikonek w pasku */
+      .ant-image-preview-operations-operation {
+        color: #ffffff !important;
+        font-size: 22px !important;
+        margin: 0 12px !important;
+      }
+      /* Efekt po najechaniu na ikonkę */
+      .ant-image-preview-operations-operation:hover {
+        color: #1890ff !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Wymagane przez Molstar
+      window.global = window;
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
