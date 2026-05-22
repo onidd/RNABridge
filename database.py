@@ -117,28 +117,53 @@ def add_helix_segments(session, h_obj, h_data, pdb_id, bp_cache):
 def update_database(session, root_dir):
     """Scans classification_result and updates the database with new entries."""
     print("--- STARTING DATABASE UPDATE ---")
-    svg_cache = {f.name.replace("varna-tz-", "").replace("-clean.svg", "").replace("_varna", ""): str(f) for f in Path(root_dir).glob("**/*.svg")}
+    
+    def to_rel(p):
+        try: return os.path.relpath(str(p), os.getcwd())
+        except: return str(p)
+
+    svg_cache = {}
+    for f in Path(root_dir).glob("**/*.svg"):
+        key = f.name.replace("varna-tz-", "").replace("-clean.svg", "").replace("_varna", "")
+        svg_cache[key] = to_rel(f)
+    
     json_files = [f for f in Path(root_dir).glob('**/*.json') if not f.name.endswith('_varna.json')]
-    existing_h = {h.path_json: h for h in session.query(Helix).all()}
-    existing_j = {j.path_json: j for j in session.query(Junction).all()}
+    
+    # Reload existing with variants
+    existing_h, existing_j = {}, {}
+    for h in session.query(Helix).all():
+        existing_h[h.path_json] = h
+        existing_h[os.path.abspath(h.path_json)] = h
+    for j in session.query(Junction).all():
+        existing_j[j.path_json] = j
+        existing_j[os.path.abspath(j.path_json)] = j
     
     metadata_cache, bpseq_cache, batch_size = {}, {}, 200
     for i in range(0, len(json_files), batch_size):
         batch = json_files[i : i + batch_size]
         for path in batch:
-            ps, pdb_id = str(path), path.name.split('_')[0].upper()
-            if ps in existing_h or ps in existing_j: continue
+            ps_rel = to_rel(path)
+            ps_abs = str(path.absolute())
+            pdb_id = path.name.split('_')[0].upper()
+            svg = svg_cache.get(path.stem)
+
+            # Check if record exists but is missing SVG
+            target = existing_h.get(ps_rel) or existing_h.get(ps_abs) or existing_j.get(ps_rel) or existing_j.get(ps_abs)
+            if target:
+                if not target.path_svg and svg:
+                    target.path_svg = svg
+                    session.flush()
+                continue
             
             if pdb_id not in metadata_cache: metadata_cache[pdb_id] = MetadataProvider.fetch_metadata(pdb_id)
             mol, org, res, met = metadata_cache[pdb_id]
-            svg = svg_cache.get(path.stem)
             
             try: data = json.load(open(path, 'r', encoding='utf-8'))
             except: continue
 
             if 'helices' in data:
                 for h_d in data['helices']:
-                    h = Helix(pdb_id=pdb_id, molecule=mol, organism=org, resolution=res, method=met, segment_count_folder=path.parent.name, total_nt=h_d.get('total_nt'), global_bend_angle=h_d.get('global_measures', {}).get('angle'), path_json=ps, path_cif=str(path.with_suffix('.cif')), path_pml=str(path.with_suffix('.pml')), path_svg=svg, sequence_full=Utils.get_full_sequence_from_data(h_d))
+                    h = Helix(pdb_id=pdb_id, molecule=mol, organism=org, resolution=res, method=met, segment_count_folder=path.parent.name, total_nt=h_d.get('total_nt'), global_bend_angle=h_d.get('global_measures', {}).get('angle'), path_json=ps_rel, path_cif=to_rel(path.with_suffix('.cif')), path_pml=to_rel(path.with_suffix('.pml')), path_svg=svg, sequence_full=Utils.get_full_sequence_from_data(h_d))
                     session.add(h); session.flush()
                     add_helix_segments(session, h, h_d, pdb_id, bpseq_cache)
             elif 'junctions' in data:
@@ -146,7 +171,7 @@ def update_database(session, root_dir):
                     angs = j_d.get('modules', {}).get('geometry', {}).get('bend_angles', {})
                     valid = [v for v in angs.values() if v is not None]
                     best_angle = min(valid) if valid else None
-                    j = Junction(pdb_id=pdb_id, molecule=mol, organism=org, resolution=res, method=met, segment_count_folder=path.parent.name, total_nt=j_d.get('total_nt'), j_id=j_d.get('j_id'), stacking_status=j_d.get('modules',{}).get('stacking',{}).get('status'), coaxial_pairs=json.dumps(j_d.get('modules',{}).get('stacking',{}).get('coaxial_pairs',[])), bend_angles=json.dumps(angs), global_bend_angle=best_angle, sequence=Utils.get_full_sequence_from_data(j_d), path_json=ps, path_cif=str(path.with_suffix('.cif')), path_pml=str(path.with_suffix('.pml')), path_svg=svg)
+                    j = Junction(pdb_id=pdb_id, molecule=mol, organism=org, resolution=res, method=met, segment_count_folder=path.parent.name, total_nt=j_d.get('total_nt'), j_id=j_d.get('j_id'), stacking_status=j_d.get('modules',{}).get('stacking',{}).get('status'), coaxial_pairs=json.dumps(j_d.get('modules',{}).get('stacking',{}).get('coaxial_pairs',[])), bend_angles=json.dumps(angs), global_bend_angle=best_angle, sequence=Utils.get_full_sequence_from_data(j_d), path_json=ps_rel, path_cif=to_rel(path.with_suffix('.cif')), path_pml=to_rel(path.with_suffix('.pml')), path_svg=svg)
                     session.add(j)
         session.commit()
         print(f"Database progress: {min(i + batch_size, len(json_files))}/{len(json_files)}")
