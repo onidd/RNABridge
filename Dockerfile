@@ -13,7 +13,7 @@ WORKDIR /app
 # Install system dependencies for PyMOL, PostgreSQL and basic tools
 RUN apt-get update && apt-get install -y \
     libglu1-mesa \
-    libgl1-mesa-glx \
+    libgl1 \
     libxrender1 \
     libxcursor1 \
     libxft2 \
