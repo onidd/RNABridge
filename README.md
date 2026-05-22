@@ -5,77 +5,78 @@ RNABridge is a professional tool for analyzing RNA structural motifs, identifyin
 ## Key Features
 
 - **Centralized Core**: All logic (geometry, stacking, visualization) is powered by the `rnabridge.py` library.
-- **Optimized Pipeline**: A high-performance, single-pass analysis script (`analyze.py`) replaces redundant intermediate steps.
-- **Automated Configuration**: Centralized `config.py` handles environment variables and automatic database switching (PostgreSQL/SQLite).
-- **Rich Visualizations**: Automatically generates SVG diagrams and high-quality PML scripts for PyMOL.
-- **Full Stack Solution**: Includes a FastAPI backend and a modern React frontend for data exploration.
+- **Optimized Pipeline**: High-performance analysis script (`analyze.py`) replaces redundant intermediate steps.
+- **Full Stack Solution**: Includes a FastAPI backend and a modern React frontend.
+- **Interactive Documentation**: Built-in Swagger UI and ReDoc for API exploration.
 
-## Requirements
+---
+
+## Prerequisites
 
 | Tool | Purpose | Note |
 | :--- | :--- | :--- |
-| **Python 3.12+** | Main Logic | Required |
 | **X3DNA (v2.4)** | Helix Analysis | **User must provide manually** in `x3dna-v2.4/` directory |
-| **Docker** | Visualizations | Required for `cli2rest-bio` (VARNA) |
-| **Node.js** | Frontend | Required to run the web interface |
-| **PyMOL** | 3D Processing | Recommended (installed via Conda or system) |
+| **Docker** | Containerization | Required for Option 1 (and for VARNA visualizations) |
+| **Node.js** | Frontend | Required for Option 2/3 (Local development) |
+| **Python 3.12+** | Backend | Required for Option 2/3 (Local development) |
 
-## Installation
+---
 
-### 1. Backend Setup
-The easiest way to set up the backend is using Conda:
+## Installation & Setup
+
+Choose the method that best fits your needs:
+
+### Option 1: Docker (Quick Start - Recommended)
+The easiest way to run the entire stack (Backend + Frontend) without installing local dependencies.
+1. Place your `x3dna-v2.4` folder in the project root.
+2. Run:
 ```bash
-# Create and activate the environment
-conda env create -f environment.yml
-conda activate rnabridge
+docker-compose up --build
 ```
-Alternatively, use pip: `pip install -r requirements.txt`
+Access the application at `http://localhost:8000`.
 
-### 2. Frontend Setup
-```bash
-cd frontend
-npm install
-```
+### Option 2: Conda (Recommended for Developers)
+Best if you plan to modify the code or run scripts manually.
+1. Create environment: `conda env create -f environment.yml`
+2. Activate: `conda activate rnabridge`
+3. Install frontend: `cd frontend && npm install`
+4. Run: `./pipeline.sh` and then `python api.py`
 
-### 3. External Tools
-Place the X3DNA distribution in the root directory:
-```text
-RNABridge/
-├── x3dna-v2.4/  <-- Place X3DNA here
-├── analyze.py
-└── ...
-```
+### Option 3: Manual Pip Setup
+1. Install dependencies: `pip install -r requirements.txt`
+2. Install frontend: `cd frontend && npm install`
+3. Run: `./pipeline.sh` and then `python api.py`
 
-## Usage
+---
 
-### 1. Run Analysis Pipeline
+## Usage Guide
+
+### 1. Analysis Pipeline
 Place your `.cif` files in the `cif/` directory and run:
 ```bash
-chmod +x pipeline.sh
 ./pipeline.sh
 ```
 
-### 2. Start the API Server
-```bash
-python api.py
-```
+### 2. API Documentation
+Once the server is running (port 8000), access the interactive docs:
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
-### 3. Launch Web Interface
+### 3. Frontend Development
+If running locally (Option 2/3), start the dev server:
 ```bash
 cd frontend
 npm run dev
 ```
-The interface will be available at `http://localhost:5173`.
+Accessible at `http://localhost:5173`.
 
-## Database Configuration
+## Configuration
 
-The system uses **SQLite** by default. It automatically switches to **PostgreSQL** if the `DATABASE_URL` environment variable is detected:
-```bash
-export DATABASE_URL="postgresql://user:password@localhost:5432/rnabridge"
-```
+- **Database**: Uses SQLite by default. Set `DATABASE_URL` environment variable for PostgreSQL.
+- **X3DNA**: Ensure the distribution is in `x3dna-v2.4/` at the project root.
 
-## Data Sources & Licensing
+## Licensing
 
-- **RCSB PDB**: Structural data is fetched from the [RCSB Protein Data Bank](https://www.rcsb.org/). Use of this data must comply with their terms.
-- **X3DNA**: This project requires X3DNA for geometric calculations. Users are responsible for obtaining a valid license from [x3dna.org](http://x3dna.org/) before use.
-- **Disclaimer**: This tool is for research and educational purposes. The authors are not responsible for the licensing of third-party tools required to run the software.
+- **RCSB PDB**: Data is fetched from [RCSB PDB](https://www.rcsb.org/).
+- **X3DNA**: Users must obtain their own license from [x3dna.org](http://x3dna.org/).
+- **Disclaimer**: This tool is for research. Authors are not responsible for the licensing of third-party tools.
