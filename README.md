@@ -125,5 +125,5 @@ RNABridge uses a centralized `config.py`. Key environment variables:
 ## 👥 Authors
 
 - **Damian Zakrzewski**
-- **Tomasz Żok**
+- **Tomasz Zok**
 - **Maciej Antczak**
