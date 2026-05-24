@@ -117,5 +117,8 @@ RNABridge uses a centralized `config.py`. Key environment variables:
 - **X3DNA**: Users must obtain their own license from [x3dna.org](http://x3dna.org/).
 - **RCSB PDB**: Structural data is fetched from the [Protein Data Bank](https://www.rcsb.org/).
 
-*If you use RNABridge in your research, please cite:*
-> [Citation Placeholder - Pre-submission]
+## 👥 Authors
+
+- **Damian Zakrzewski**
+- **Tomasz Żok**
+- **Maciej Antczak**
