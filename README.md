@@ -96,8 +96,12 @@ docker-compose exec app bash pipeline.sh
 ```
 
 ### 2. Accessing the Interface
-- **In Docker**: Everything is unified at `http://localhost:8000`.
-- **Local Dev**:
+- **Web Interface**: [http://localhost:8000](http://localhost:8000)
+- **API Documentation**: 
+  - **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+  - **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+- **Development Mode (Local)**: 
   - **Backend**: `python api.py` (serves API at `:8000`)
   - **Frontend (Live Reload)**: `cd frontend && npm run dev` (available at `:5173`)
 
@@ -108,6 +112,7 @@ docker-compose exec app bash pipeline.sh
 RNABridge uses a centralized `config.py`. Key environment variables:
 
 - `DATABASE_URL`: Connection string. Defaults to SQLite (`sqlite:///rnabridge.db`).
+  - **PostgreSQL Example**: `export DATABASE_URL="postgresql://user:password@localhost:5432/rnabridge"`
 - `X3DNA`: Path to X3DNA installation (default: `./x3dna-v2.4`).
 
 ---
