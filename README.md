@@ -1,6 +1,6 @@
 # RNABridge 🧬
 
-RNABridge is a professional platform for the analysis of RNA structural motifs. It automates the extraction, categorization, and visualization of complex super-helices and junctions from PDB/mmCIF data, providing a searchable database with interactive 2D and 3D perspectives.
+RNABridge is a professional platform for the analysis of RNA structural motifs. It automates the extraction, categorization, and visualization of complex super-helices and junctions from CIF data, providing a searchable database with interactive 2D and 3D perspectives.
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
