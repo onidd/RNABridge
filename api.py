@@ -146,9 +146,12 @@ async def search(
             s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
             h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
         
-        if stacking_stem1 and stacking_stem2:
-            s1, s2 = stacking_stem1.lower(), stacking_stem2.lower()
-            j_q = j_q.filter(and_(or_(Junction.coaxial_pairs.contains(f'["{s1}","{s2}"]'), Junction.coaxial_pairs.contains(f'["{s2}","{s1}"]')), or_(Junction.bend_angles.contains(f'"stem_{s1.split("_")[1]}_{s2.split("_")[1]}"'), Junction.bend_angles.contains(f'"stem_{s2.split("_")[1]}_{s1.split("_")[1]}"'))))
+        if stacking_stem1 or stacking_stem2:
+            h_q = h_q.filter(Helix.id < 0) # Helisy nie mają zdefiniowanych par współosiowych
+            if stacking_stem1:
+                j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
+            if stacking_stem2:
+                j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
 
         # Combined sorting and pagination
         s_col = sort_by or 'pdb_id'

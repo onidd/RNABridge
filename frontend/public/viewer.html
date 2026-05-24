@@ -18,26 +18,15 @@
     <script type="text/javascript">
         const params = new URLSearchParams(window.location.search);
         const cifUrl = params.get('url');
+        const viewerInstance = new PDBeMolstarPlugin();
+        let isRendered = false;
+        let pendingHighlights = null;
 
-        if (cifUrl) {
-            const viewerInstance = new PDBeMolstarPlugin();
-            const highlightsParam = params.get('highlights');
-            let highlightData = [];
-            
-            try {
-                if (highlightsParam && highlightsParam !== "null") {
-                    highlightData = JSON.parse(highlightsParam);
-                }
-            } catch (e) { console.error("Failed to parse highlights", e); }
-
-            // Budujemy paczki kolorystyczne
-            const selections = (highlightData || []).map(h => ({
-                auth_asym_id: h.chain || 'A',
-                start_residue_number: parseInt(h.start),
-                end_residue_number: parseInt(h.end),
-                color: h.color || { r: 180, g: 180, b: 180 },
-                focus: false
-            })).filter(s => !isNaN(s.start_residue_number) && !isNaN(s.end_residue_number));
+        function renderViewer(highlights) {
+            if (isRendered) {
+                applyHighlights(highlights);
+                return;
+            }
 
             const options = {
                 customData: { url: cifUrl, format: 'cif' },
@@ -55,37 +44,65 @@
 
             const viewerContainer = document.getElementById('viewer');
             viewerInstance.render(viewerContainer, options).then(() => {
-                
-                const applyColoring = () => {
-                    // 1. Agresywne szarzenie wszystkiego (używamy wildcardów, aby złapać też "pomarańczowe" łańcuchy)
+                isRendered = true;
+                applyHighlights(highlights);
+            });
+        }
+
+        function applyHighlights(highlightData) {
+            if (!highlightData || highlightData.length === 0) return;
+
+            const selections = highlightData.map(h => ({
+                auth_asym_id: h.chain || 'A',
+                start_residue_number: parseInt(h.start),
+                end_residue_number: parseInt(h.end),
+                color: h.color || { r: 180, g: 180, b: 180 },
+                focus: false
+            })).filter(s => !isNaN(s.start_residue_number) && !isNaN(s.end_residue_number));
+
+            const applyColoring = () => {
+                // 1. Agresywne szarzenie wszystkiego
+                viewerInstance.visual.select({
+                    data: [
+                        { struct_asym_id: '*', color: { r: 180, g: 180, b: 180 } },
+                        { auth_asym_id: '*', color: { r: 180, g: 180, b: 180 } }
+                    ],
+                    nonClick: true
+                });
+
+                // 2. Nakładanie highlightów
+                if (selections.length > 0) {
                     viewerInstance.visual.select({
-                        data: [
-                            { struct_asym_id: '*', color: { r: 180, g: 180, b: 180 } },
-                            { auth_asym_id: '*', color: { r: 180, g: 180, b: 180 } }
-                        ],
+                        data: selections,
                         nonClick: true
                     });
+                    
+                    const structuralSelections = selections.map(s => ({...s, struct_asym_id: s.auth_asym_id}));
+                    viewerInstance.visual.select({
+                        data: structuralSelections,
+                        nonClick: true
+                    });
+                }
+            };
 
-                    // 2. Nakładanie highlightów
-                    if (selections.length > 0) {
-                        viewerInstance.visual.select({
-                            data: selections,
-                            nonClick: true
-                        });
-                        
-                        // Druga próba dla identyfikatorów strukturalnych (czasem pliki CIF mają rozbieżność)
-                        const structuralSelections = selections.map(s => ({...s, struct_asym_id: s.auth_asym_id}));
-                        viewerInstance.visual.select({
-                            data: structuralSelections,
-                            nonClick: true
-                        });
-                    }
-                };
+            // Wykonujemy kolorowanie po 800ms i powtarzamy po 2s dla dużych struktur
+            setTimeout(applyColoring, 800);
+            setTimeout(applyColoring, 2500);
+        }
 
-                // Wykonujemy kolorowanie po 800ms i powtarzamy po 2s dla dużych struktur
-                setTimeout(applyColoring, 800);
-                setTimeout(applyColoring, 2500);
-            });
+        // Słuchamy na wiadomości postMessage
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'SET_HIGHLIGHTS') {
+                if (cifUrl) {
+                    renderViewer(event.data.highlights);
+                }
+            }
+        });
+
+        // Jeśli URL nie ma highlights (teraz nie ma), ale ma cifUrl, renderujemy od razu (szary model)
+        // a potem doczekamy się na postMessage z kolorami
+        if (cifUrl) {
+            renderViewer([]);
         }
     </script>
 </body>
