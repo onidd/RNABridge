@@ -590,10 +590,8 @@ const App: React.FC = () => {
       const maxWay = response.data.max_way || 0;
       
       setMaxNtLimit(maxVal);
-      // Dynamicznie ustawiamy zakres suwaka na aktualny max z bazy
       form.setFieldsValue({ nt_range: [0, maxVal] });
       
-      // Dynamicznie ustawiamy listę stemów w filtrze
       const options = Array.from({ length: maxWay }, (_, i) => ({ 
         value: `STEM_${i + 1}`, 
         label: `STEM ${i + 1}` 
@@ -1531,16 +1529,16 @@ const App: React.FC = () => {
       </Modal>
 
       <Modal
-        title={<span><FileTextOutlined /> Podgląd pliku CSV</span>}
+        title={<span><FileTextOutlined /> CSV File Preview</span>}
         open={csvPreviewVisible}
         onCancel={() => setCsvPreviewVisible(false)}
         width={700}
         footer={[
           <Button key="cancel" onClick={() => setCsvPreviewVisible(false)}>
-            Anuluj
+            Cancel
           </Button>,
           <Button key="download" type="primary" icon={<DownloadOutlined />} onClick={downloadCsv}>
-            Pobierz plik CSV
+            Download CSV file
           </Button>
         ]}
       >
@@ -1548,7 +1546,7 @@ const App: React.FC = () => {
           <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>{csvContent}</pre>
         </div>
         <Text type="secondary" style={{ display: 'block', marginTop: '10px' }}>
-          Plik zawiera {results.length} wierszy danych (plus nagłówek).
+          The file contains {results.length} rows of data (plus header).
         </Text>
       </Modal>
     </Layout>
