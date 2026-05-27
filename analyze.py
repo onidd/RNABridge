@@ -229,10 +229,21 @@ def main():
                 add_to_set(comp["internal_stem"].get("strand5p")); add_to_set(comp["internal_stem"].get("strand3p"))
         junc["total_nt"] = len(unique_nts)
 
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-    with open(output_file, 'w') as f: json.dump({"helices": formatted_helices, "junctions": junctions_output}, f, indent=4)
+    # Ensure output directory exists using absolute path
+    abs_output = os.path.abspath(output_file)
+    out_dir = os.path.dirname(abs_output)
+    
+    if not os.path.exists(out_dir):
+        print(f"DEBUG: Directory {out_dir} does not exist. Creating...")
+        os.makedirs(out_dir, exist_ok=True)
+    
+    try:
+        with open(abs_output, 'w', encoding="UTF-8") as f: 
+            json.dump({"helices": formatted_helices, "junctions": junctions_output}, f, indent=4)
+    except Exception as e:
+        print(f"ERROR: Could not save result to {abs_output}: {e}")
+        sys.exit(1)
+        
     print(f"Finished. Saved {len(formatted_helices)} helices and {len(junctions_output)} junctions.")
 
 if __name__ == "__main__":
