@@ -513,8 +513,7 @@ class GeometryCalculator:
     def _init_pymol():
         """Initializes PyMOL in headless mode."""
         if not GeometryCalculator._pymol_initialized:
-            pymol.pymol_argv = ['pymol', '-qc']
-            pymol.finish_launching()
+            pymol.finish_launching(['pymol', '-cq'])
             GeometryCalculator._pymol_initialized = True
 
     @staticmethod
@@ -593,12 +592,20 @@ class GeometryCalculator:
         """Calculates the C1'-C1' distance between two residues using PyMOL."""
         if not res1 or not res2: return None
         GeometryCalculator.load_structure(pdb_path)
-        s1 = f"(chain {res1.get('chain')} and resi {res1.get('number')} and (name C1' or name C1*))"
-        s2 = f"(chain {res2.get('chain')} and resi {res2.get('number')} and (name C1' or name C1*))"
+        
+        c1, n1 = res1.get('chain'), res1.get('number')
+        c2, n2 = res2.get('chain'), res2.get('number')
+        
+        s1 = f"(full_struct and chain {c1} and resi {n1} and (name C1' or name C1*))"
+        s2 = f"(full_struct and chain {c2} and resi {n2} and (name C1' or name C1*))"
+        
         try:
             d = cmd.get_distance(s1, s2)
             return round(d, 2)
-        except: return None
+        except:
+            # If distance fails in Docker, we return a huge number to skip the junction
+            # instead of None which might be misinterpreted.
+            return 999.0
 
     @staticmethod
     def validate_junction_compactness(cif_path: str, loop_strands: List[Dict], max_dist: float = 20.0) -> bool:
