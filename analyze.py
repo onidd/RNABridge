@@ -234,7 +234,6 @@ def main():
     out_dir = os.path.dirname(abs_output)
     
     if not os.path.exists(out_dir):
-        print(f"DEBUG: Directory {out_dir} does not exist. Creating...")
         os.makedirs(out_dir, exist_ok=True)
     
     try:
