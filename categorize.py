@@ -82,17 +82,21 @@ def run_categorization():
                 if not os.path.exists(svg_path):
                     full_sel = Visualizer.get_continuous_selection(helix, is_junction=False)
                     if full_sel != "none":
-                        GeometryCalculator.load_structure(cif_path)
-                        from pymol import cmd
-                        cmd.select("target", full_sel)
-                        cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
-                        Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, helix, full_sel, is_junction=False)
-                        v_json = os.path.join(save_dir, f"{out_base}_varna.json")
-                        Visualizer.export_varna_json(helix, v_json, mapping=mapping_cache.get(base_name), is_junction=False)
-                        varna_tasks.append(v_json)
-                        total_saved += 1
-                        with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
-                            json.dump({"helices": [helix]}, out_f, indent=4)
+                        try:
+                            from pymol import cmd
+                            cmd.reinitialize()
+                            GeometryCalculator.load_structure(cif_path)
+                            cmd.select("target", full_sel)
+                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
+                            Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, helix, full_sel, is_junction=False)
+                            v_json = os.path.join(save_dir, f"{out_base}_varna.json")
+                            Visualizer.export_varna_json(helix, v_json, mapping=mapping_cache.get(base_name), is_junction=False)
+                            varna_tasks.append(v_json)
+                            total_saved += 1
+                            with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
+                                json.dump({"helices": [helix]}, out_f, indent=4)
+                        except Exception as pymol_err:
+                            print(f"   -> PyMOL ERROR for helix {out_base}: {pymol_err}")
 
             # 2. Process Junctions
             for junction in data.get("junctions", []):
@@ -105,17 +109,21 @@ def run_categorization():
                 if not os.path.exists(svg_path):
                     full_sel = Visualizer.get_continuous_selection(junction, is_junction=True)
                     if full_sel != "none":
-                        GeometryCalculator.load_structure(cif_path)
-                        from pymol import cmd
-                        cmd.select("target", full_sel)
-                        cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
-                        Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, junction, full_sel, is_junction=True)
-                        v_json = os.path.join(save_dir, f"{out_base}_varna.json")
-                        Visualizer.export_varna_json(junction, v_json, mapping=mapping_cache.get(base_name), is_junction=True)
-                        varna_tasks.append(v_json)
-                        total_saved += 1
-                        with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
-                            json.dump({"junctions": [junction]}, out_f, indent=4)
+                        try:
+                            from pymol import cmd
+                            cmd.reinitialize()
+                            GeometryCalculator.load_structure(cif_path)
+                            cmd.select("target", full_sel)
+                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
+                            Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, junction, full_sel, is_junction=True)
+                            v_json = os.path.join(save_dir, f"{out_base}_varna.json")
+                            Visualizer.export_varna_json(junction, v_json, mapping=mapping_cache.get(base_name), is_junction=True)
+                            varna_tasks.append(v_json)
+                            total_saved += 1
+                            with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
+                                json.dump({"junctions": [junction]}, out_f, indent=4)
+                        except Exception as pymol_err:
+                            print(f"   -> PyMOL ERROR for junction {out_base}: {pymol_err}")
 
         except Exception as e:
             print(f"ERROR in file {filepath}: {e}")
