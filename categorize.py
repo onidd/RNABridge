@@ -49,16 +49,28 @@ def run_categorization():
 
             # 1. Process Helices
             for helix in data.get("helices", []):
-                # Count segments
-                u_ser = helix.get("strands",{}).get("upstream",{}).get("strand5p",{}).get("first",{}).get("serial")
-                unique_stems = {u_ser} if u_ser else set()
+                # Count unique stems robustly across all fields
+                unique_stems = set()
+                strands = helix.get("strands", {})
+                
+                # Check upstream stem
+                u_f = strands.get("upstream", {}).get("strand5p", {}).get("first")
+                if u_f and u_f.get("serial") is not None:
+                    unique_stems.add(u_f.get("serial"))
+                
+                # Check internal stems (within components)
                 for comp in helix.get("components", []):
-                    i_ser = comp.get("internal_stem", {}).get("strand5p", {}).get("first", {}).get("serial")
-                    if i_ser: unique_stems.add(i_ser)
-                d_ser = helix.get("strands",{}).get("downstream",{}).get("strand5p",{}).get("first",{}).get("serial")
-                if d_ser: unique_stems.add(d_ser)
+                    i_f = comp.get("internal_stem", {}).get("strand5p", {}).get("first")
+                    if i_f and i_f.get("serial") is not None:
+                        unique_stems.add(i_f.get("serial"))
+                
+                # Check downstream stem
+                d_f = strands.get("downstream", {}).get("strand5p", {}).get("first")
+                if d_f and d_f.get("serial") is not None:
+                    unique_stems.add(d_f.get("serial"))
                 
                 n = len(unique_stems)
+                # We only process super-helices (2 or more segments)
                 if n < 2: continue
                 
                 h_id, save_dir = helix.get("h_id", "unknown"), os.path.join(OUTPUT_DIR, f"{n}-segment-helis")
