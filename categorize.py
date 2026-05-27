@@ -5,15 +5,13 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from rnabridge import Visualizer, GeometryCalculator
 from config import INPUT_DIR, OUTPUT_DIR, CIF_DIR, JSON_DIR, VARNA_CLI_PATH
+
 def run_varna_task(v_json_path):
     """
     Executes the VARNA CLI tool to generate SVG visualizations from a VARNA JSON file.
     """
     cli_path = VARNA_CLI_PATH
-
-    # Run the external VARNA tool (using tz variant)
     subprocess.run([cli_path, "varna-tz", str(v_json_path)])
-
 
 def run_categorization():
     """
@@ -49,35 +47,23 @@ def run_categorization():
 
             # 1. Process Helices
             for helix in data.get("helices", []):
-                # Count unique stems robustly across all fields
+                # Count segments robustly
                 unique_stems = set()
                 strands = helix.get("strands", {})
-                
-                # Check upstream stem
-                u_f = strands.get("upstream", {}).get("strand5p", {}).get("first")
-                if u_f and u_f.get("serial") is not None:
-                    unique_stems.add(u_f.get("serial"))
-                
-                # Check internal stems (within components)
+                for key in ["upstream", "downstream"]:
+                    u_f = strands.get(key, {}).get("strand5p", {}).get("first")
+                    if u_f and u_f.get("serial") is not None: unique_stems.add(u_f.get("serial"))
                 for comp in helix.get("components", []):
                     i_f = comp.get("internal_stem", {}).get("strand5p", {}).get("first")
-                    if i_f and i_f.get("serial") is not None:
-                        unique_stems.add(i_f.get("serial"))
-                
-                # Check downstream stem
-                d_f = strands.get("downstream", {}).get("strand5p", {}).get("first")
-                if d_f and d_f.get("serial") is not None:
-                    unique_stems.add(d_f.get("serial"))
+                    if i_f and i_f.get("serial") is not None: unique_stems.add(i_f.get("serial"))
                 
                 n = len(unique_stems)
-                # We only process super-helices (2 or more segments)
                 if n < 2: continue
                 
                 h_id, save_dir = helix.get("h_id", "unknown"), os.path.join(OUTPUT_DIR, f"{n}-segment-helis")
-                if not os.path.exists(save_dir): os.makedirs(save_dir, exist_ok=True)
+                os.makedirs(save_dir, exist_ok=True)
                 out_base = f"{base_name}_h{h_id}_{n}-segment"
                 
-                # Check for output SVG
                 svg_path = os.path.join(save_dir, f"varna-tz-{out_base}_varna-clean.svg")
                 if not os.path.exists(svg_path):
                     full_sel = Visualizer.get_continuous_selection(helix, is_junction=False)
@@ -85,9 +71,9 @@ def run_categorization():
                         try:
                             from pymol import cmd
                             cmd.reinitialize()
-                            GeometryCalculator.load_structure(cif_path)
-                            cmd.select("target", full_sel)
-                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
+                            cmd.load(cif_path, "target_obj")
+                            cmd.select("target_sel", full_sel)
+                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target_sel")
                             Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, helix, full_sel, is_junction=False)
                             v_json = os.path.join(save_dir, f"{out_base}_varna.json")
                             Visualizer.export_varna_json(helix, v_json, mapping=mapping_cache.get(base_name), is_junction=False)
@@ -95,14 +81,14 @@ def run_categorization():
                             total_saved += 1
                             with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
                                 json.dump({"helices": [helix]}, out_f, indent=4)
-                        except Exception as pymol_err:
-                            print(f"   -> PyMOL ERROR for helix {out_base}: {pymol_err}")
+                        except Exception as e:
+                            print(f"   -> ERROR processing helix {out_base}: {e}")
 
             # 2. Process Junctions
             for junction in data.get("junctions", []):
                 n, j_id = len(junction.get("location", [])), junction.get("j_id", "unknown")
                 save_dir = os.path.join(OUTPUT_DIR, f"{n}-way-junctions")
-                if not os.path.exists(save_dir): os.makedirs(save_dir, exist_ok=True)
+                os.makedirs(save_dir, exist_ok=True)
                 out_base = f"{base_name}_j{j_id}_{n}way"
 
                 svg_path = os.path.join(save_dir, f"varna-tz-{out_base}_varna-clean.svg")
@@ -112,9 +98,9 @@ def run_categorization():
                         try:
                             from pymol import cmd
                             cmd.reinitialize()
-                            GeometryCalculator.load_structure(cif_path)
-                            cmd.select("target", full_sel)
-                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target")
+                            cmd.load(cif_path, "target_obj")
+                            cmd.select("target_sel", full_sel)
+                            cmd.save(os.path.join(save_dir, f"{out_base}.cif"), "target_sel")
                             Visualizer.generate_pml_script(os.path.join(save_dir, f"{out_base}.pml"), cif_path, junction, full_sel, is_junction=True)
                             v_json = os.path.join(save_dir, f"{out_base}_varna.json")
                             Visualizer.export_varna_json(junction, v_json, mapping=mapping_cache.get(base_name), is_junction=True)
@@ -122,8 +108,8 @@ def run_categorization():
                             total_saved += 1
                             with open(os.path.join(save_dir, f"{out_base}.json"), "w") as out_f:
                                 json.dump({"junctions": [junction]}, out_f, indent=4)
-                        except Exception as pymol_err:
-                            print(f"   -> PyMOL ERROR for junction {out_base}: {pymol_err}")
+                        except Exception as e:
+                            print(f"   -> ERROR processing junction {out_base}: {e}")
 
         except Exception as e:
             print(f"ERROR in file {filepath}: {e}")
