@@ -1,9 +1,12 @@
 import os
 import json
-from fastapi import FastAPI, Query, HTTPException
+import csv
+import io
+import zipfile
+from fastapi import FastAPI, Query, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from sqlalchemy import create_engine, or_, and_, func, String, Integer
 from sqlalchemy.orm import sessionmaker
 from database import Helix, Segment, Junction
@@ -184,6 +187,141 @@ async def search(
         for f, b, c in j_ang: angle_stats.append({"folder": f, "bin": b, "count": c})
 
         return {"results": final_results, "total": total_count, "page": page, "limit": limit, "stats": {"pie": pie_stats, "angles": angle_stats}}
+
+@app.get("/api/export-csv")
+async def export_csv(
+    segment_type: Optional[List[str]] = Query(None), motif_type: Optional[List[str]] = Query(None),
+    min_angle: Optional[float] = Query(None), max_angle: Optional[float] = Query(None),
+    min_nt: Optional[int] = Query(None), max_nt: Optional[int] = Query(None),
+    search_pdb: Optional[str] = Query(None), sequence: Optional[str] = Query(None),
+    stacking_stem1: Optional[str] = Query(None), stacking_stem2: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query(None), sort_order: str = Query("asc")
+):
+    """Exports all filtered results as a CSV file."""
+    with SessionLocal() as session:
+        actual = segment_type or motif_type or []
+        h_q, j_q = session.query(Helix), session.query(Junction)
+        
+        if actual:
+            h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
+            j_f = []
+            for t in actual:
+                if t == '8plus-junctions': j_f.append(and_(~Junction.segment_count_folder.contains('3-way'), ~Junction.segment_count_folder.contains('4-way'), ~Junction.segment_count_folder.contains('5-way'), ~Junction.segment_count_folder.contains('6-way'), ~Junction.segment_count_folder.contains('7-way'), Junction.segment_count_folder.contains('way-junction')))
+                else: j_f.append(Junction.segment_count_folder.contains(t))
+            j_q = j_q.filter(or_(*j_f))
+        
+        if min_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle >= min_angle), j_q.filter(Junction.global_bend_angle >= min_angle)
+        if max_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle <= max_angle), j_q.filter(Junction.global_bend_angle <= max_angle)
+        if min_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt >= min_nt), j_q.filter(Junction.total_nt >= min_nt)
+        if max_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt <= max_nt), j_q.filter(Junction.total_nt <= max_nt)
+        if search_pdb: h_q, j_q = h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")), j_q.filter(Junction.pdb_id.like(f"%{search_pdb}"))
+        if sequence:
+            s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
+            h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
+        if stacking_stem1 or stacking_stem2:
+            h_q = h_q.filter(Helix.id < 0)
+            if stacking_stem1: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
+            if stacking_stem2: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
+
+        s_col = sort_by or 'pdb_id'
+        a_h, a_j = getattr(Helix, s_col, Helix.pdb_id), getattr(Junction, s_col, Junction.pdb_id)
+        # Fetching organism instead of molecule for the CSV
+        h_res = h_q.with_entities(Helix.pdb_id, Helix.organism, Helix.method, Helix.resolution, Helix.segment_count_folder, Helix.total_nt, Helix.global_bend_angle, a_h).all()
+        j_res = j_q.with_entities(Junction.pdb_id, Junction.organism, Junction.method, Junction.resolution, Junction.segment_count_folder, Junction.total_nt, Junction.global_bend_angle, a_j).all()
+        
+        combined = []
+        for r in h_res: combined.append([r[0], r[1], r[2], r[3], 'HELIX', r[4], r[5], r[6], r[7]])
+        for r in j_res: combined.append([r[0], r[1], r[2], r[3], 'JUNCTION', r[4], r[5], r[6], r[7]])
+        
+        # Sort by the dynamic column (index 8)
+        combined.sort(key=lambda x: (x[8] if x[8] is not None else ""), reverse=(sort_order == "desc"))
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        # Using "Source" as the header for the organism field
+        writer.writerow(['CIF ID', 'Source', 'Type', 'Segment Count', 'NTs', 'Bend Angle (deg)', 'Res. (A)', 'Method'])
+        for r in combined:
+            writer.writerow([
+                r[0],                              # CIF ID
+                r[1] or "Unknown",                 # Source (Organism)
+                r[4],                              # Type
+                r[5],                              # Segment Count
+                r[6],                              # NTs
+                f"{r[7]:.1f}" if r[7] is not None else "-", 
+                f"{r[3]:.2f}" if r[3] is not None else "-",
+                r[2] or "N/A"                      # Method
+            ])
+        
+        return PlainTextResponse(output.getvalue(), media_type="text/csv")
+
+@app.post("/api/download-zip")
+async def download_zip(file_paths: List[str]):
+    """Creates a ZIP archive from the provided file paths and returns it as a stream."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for path in file_paths:
+            full_path = os.path.join(os.getcwd(), path)
+            if os.path.exists(full_path):
+                zip_file.write(full_path, os.path.basename(full_path))
+    
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer, 
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": "attachment; filename=RNABridge_results.zip"}
+    )
+
+@app.get("/api/export-zip")
+async def export_zip(
+    segment_type: Optional[List[str]] = Query(None), motif_type: Optional[List[str]] = Query(None),
+    min_angle: Optional[float] = Query(None), max_angle: Optional[float] = Query(None),
+    min_nt: Optional[int] = Query(None), max_nt: Optional[int] = Query(None),
+    search_pdb: Optional[str] = Query(None), sequence: Optional[str] = Query(None),
+    stacking_stem1: Optional[str] = Query(None), stacking_stem2: Optional[str] = Query(None)
+):
+    """Exports all filtered results as a ZIP file."""
+    with SessionLocal() as session:
+        actual = segment_type or motif_type or []
+        h_q, j_q = session.query(Helix), session.query(Junction)
+        
+        if actual:
+            h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
+            j_f = []
+            for t in actual:
+                if t == '8plus-junctions': j_f.append(and_(~Junction.segment_count_folder.contains('3-way'), ~Junction.segment_count_folder.contains('4-way'), ~Junction.segment_count_folder.contains('5-way'), ~Junction.segment_count_folder.contains('6-way'), ~Junction.segment_count_folder.contains('7-way'), Junction.segment_count_folder.contains('way-junction')))
+                else: j_f.append(Junction.segment_count_folder.contains(t))
+            j_q = j_q.filter(or_(*j_f))
+        
+        if min_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle >= min_angle), j_q.filter(Junction.global_bend_angle >= min_angle)
+        if max_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle <= max_angle), j_q.filter(Junction.global_bend_angle <= max_angle)
+        if min_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt >= min_nt), j_q.filter(Junction.total_nt >= min_nt)
+        if max_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt <= max_nt), j_q.filter(Junction.total_nt <= max_nt)
+        if search_pdb: h_q, j_q = h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")), j_q.filter(Junction.pdb_id.like(f"%{search_pdb}"))
+        if sequence:
+            s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
+            h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
+        if stacking_stem1 or stacking_stem2:
+            h_q = h_q.filter(Helix.id < 0)
+            if stacking_stem1: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
+            if stacking_stem2: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
+
+        results = h_q.with_entities(Helix.path_cif, Helix.path_pml).all() + j_q.with_entities(Junction.path_cif, Junction.path_pml).all()
+        
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for r in results:
+                for path in r:
+                    if path:
+                        full_path = os.path.join(os.getcwd(), path)
+                        if os.path.exists(full_path):
+                            zip_file.write(full_path, os.path.basename(full_path))
+        
+        zip_buffer.seek(0)
+        return StreamingResponse(
+            zip_buffer, 
+            media_type="application/x-zip-compressed",
+            headers={"Content-Disposition": "attachment; filename=RNABridge_all_results.zip"}
+        )
 
 @app.get("/api/stats")
 async def get_global_stats():
