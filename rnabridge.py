@@ -601,14 +601,33 @@ class GeometryCalculator:
         except: return None
 
     @staticmethod
-    def validate_junction_compactness(cif_path: str, loop_strands: List[Dict], max_dist: float = 25.0) -> bool:
-        """Verifies if all strand gaps in a junction are below the distance threshold."""
+    def validate_junction_compactness(cif_path: str, loop_strands: List[Dict], max_dist: float = 20.0) -> bool:
+        """
+        Verifies junction compactness and sequence continuity.
+        A junction is valid ONLY if:
+        1. All 3D distances between strand ends are below max_dist.
+        2. Residue numbering within EACH strand is continuous, 
+           allowing for a maximum of 1 missing residue per strand.
+        """
         if not cif_path: return True
         n = len(loop_strands)
         for i in range(n):
             s_curr, s_next = loop_strands[i], loop_strands[(i + 1) % n]
+            
+            # 1. Check numbering continuity WITHIN the current strand
+            f_num = Utils.to_int(s_curr.get("first", {}).get("number"))
+            l_num = Utils.to_int(s_curr.get("last", {}).get("number"))
+            actual_len = len(s_curr.get("sequence", ""))
+            if f_num is not None and l_num is not None:
+                expected_len = abs(l_num - f_num) + 1
+                # If more than 1 residue is missing in the numbering gap
+                if expected_len - actual_len > 1:
+                    return False
+
+            # 2. Check 3D Distance between current and next strand
             dist = GeometryCalculator.get_distance(cif_path, s_curr.get("last"), s_next.get("first"))
-            if dist is None or dist > max_dist: return False
+            if dist is None or dist > max_dist:
+                return False
         return True
 
     @staticmethod
@@ -824,8 +843,45 @@ class Visualizer:
             if id1 and id2 and len(lw) >= 3:
                 base_pairs.append({"id1": id1, "id2": id2, "stericity": lw_s.get(lw[0].lower(), 'CIS'), "edge5": lw_e.get(lw[1].lower(), 'WC'), "edge3": lw_e.get(lw[2].lower(), 'WC'), "canonical": False, "thickness": 2.0})
 
+        # --- DRAW STACKING PATHS (JUMPS) ---
+        v_stackings = []
+        def add_jump_stacks(p_list):
+            if not p_list or not isinstance(p_list, list): return
+            # Handle list of paths (internal loops) or single path (bulges)
+            if p_list and isinstance(p_list[0], list):
+                for sub_path in p_list: add_jump_stacks(sub_path)
+                return
+            
+            for i in range(len(p_list) - 1):
+                n1, n2 = Utils.to_int(p_list[i]), Utils.to_int(p_list[i+1])
+                # Only draw a stacking line if there is a jump in the sequence
+                if n1 is not None and n2 is not None and abs(n1 - n2) > 1:
+                    vid1, vid2 = ser_to_v_id.get(n1), ser_to_v_id.get(n2)
+                    if vid1 and vid2:
+                        v_stackings.append({
+                            "id1": vid1, 
+                            "id2": vid2, 
+                            "color": "255,0,0", 
+                            "thickness": 2.5
+                        })
+
+        if is_junction:
+            for ext_h in data.get("extended_helices", []):
+                for comp in ext_h.get("components", []):
+                    if comp.get("type") in ["BULGE", "INTERNAL_LOOP"]:
+                        add_jump_stacks(comp.get("metrics", {}).get("stacking_path"))
+        else:
+            for comp in data.get("components", []):
+                if comp.get("type") in ["BULGE", "INTERNAL_LOOP"]:
+                    add_jump_stacks(comp.get("metrics", {}).get("stacking_path"))
+
         with open(out_path, "w", encoding="UTF-8") as f:
-            json.dump({"drawingAlgorithm": "NAVIEW", "nucleotides": nucleotides, "basePairs": base_pairs, "stackings": []}, f, indent=4)
+            json.dump({
+                "drawingAlgorithm": "NAVIEW", 
+                "nucleotides": nucleotides, 
+                "basePairs": base_pairs, 
+                "stackings": v_stackings
+            }, f, indent=4)
 
 class HelicesBuilder:
     """Builds super-helices from motifs and validates global geometry."""

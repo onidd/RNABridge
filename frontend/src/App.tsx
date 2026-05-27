@@ -94,6 +94,7 @@ const HelpPage: React.FC = () => (
             <li><strong>CIF ID:</strong> Search for specific structures using their 4-character identifier.</li>
             <li><strong>Sequence Pattern:</strong> Find motifs containing specific nucleotide sequences (supports A, C, G, U).</li>
             <li><strong>Type:</strong> Filter by complexity, ranging from simple helices to multi-way junctions (up to 8+ way).</li>
+            <li><strong>Coaxially Stacked:</strong> Filter junctions by identifying specific pairs of stems (e.g., Stem 1 and Stem 3) that exhibit coaxial stacking.</li>
             <li><strong>Angle (0-50°):</strong> Filter structures based on their global curvature, which often indicates functional strain.</li>
             <li><strong>NT Range:</strong> Limit results by the total number of nucleotides within the identified motif.</li>
           </ul>
@@ -131,7 +132,7 @@ const HelpPage: React.FC = () => (
             </Col>
             <Col xs={24} md={16}>
               <Card title="Bend Angle Distribution" size="small" type="inner" style={{ height: '100%' }}>
-                <Paragraph>A bar chart showing how motifs are distributed across different bend angle ranges (0° to 50°). <strong>Hover over any bar</strong> to see the exact number of structures within that specific angle range.</Paragraph>
+                <Paragraph>A bar chart showing how motifs are distributed across different bend angle ranges (0° to 50°). <strong>Hover over any bar</strong> to see the exact count, or <strong>click a bar</strong> to instantly filter the results to that specific angle range.</Paragraph>
                 <Image 
                   src="/guide/stats_histogram.png" 
                   alt="Angle distribution"
@@ -168,12 +169,14 @@ const HelpPage: React.FC = () => (
             The results table displays all identified motifs matching your search criteria. Each row provides a summary of the structural data:
           </Paragraph>
           <ul style={{ marginBottom: 24 }}>
-            <li><strong>CIF ID:</strong> The 4-character PDB entry identifier (e.g., <Tag color="blue">6TMF</Tag>). Clicking it opens the original RCSB PDB page.</li>
+            <li><strong>CIF ID:</strong> The 4-character PDB entry identifier (e.g., <Tag color="blue">8XTP</Tag>). Clicking it opens the original RCSB PDB page.</li>
             <li><strong>Source / Molecule:</strong> Displays the name of the molecule and the organism from which the RNA was derived.</li>
+            <li><strong>Method:</strong> The experimental technique used to determine the structure (e.g., X-ray Diffraction, Cryo-EM).</li>
             <li><strong>Res. (Å):</strong> The experimental resolution of the structure in Angstroms. Lower values indicate higher detail.</li>
-            <li><strong>Length of NTs:</strong> Total number of nucleotides contained within the motif.</li>
+            <li><strong>Nts Count:</strong> Total number of nucleotides contained within the motif.</li>
             <li><strong>Bend Angle (°):</strong> The global curvature of the motif. High angles indicate sharp structural bends.</li>
             <li><strong>Type:</strong> Categorizes the motif as either a <strong>HELIX</strong> or a <strong>JUNCTION</strong>, along with its specific segment count.</li>
+            <li><strong>Visualization:</strong> Quick access to the interactive <strong>2D Schematic</strong> and <strong>3D Model</strong> viewers.</li>
             <li><strong>Download:</strong> Each row contains direct links to download the <strong>CIF</strong> (3D coordinates) and <strong>PML</strong> (PyMOL visualization script) files for that specific motif.</li>
           </ul>
 
@@ -183,7 +186,7 @@ const HelpPage: React.FC = () => (
               src="/guide/table_row.png" 
               alt="Single record example"
               style={{ borderRadius: '8px', border: '1px solid #f0f0f0', marginTop: 8 }}
-              fallback="https://placehold.co/1000x150?text=6TMF+5-way-junction+Record+Screenshot"
+              fallback="https://placehold.co/1000x150?text=8XTP+5-way-junction+Record+Screenshot"
             />
           </div>
 
@@ -201,9 +204,10 @@ const HelpPage: React.FC = () => (
                 <Card title="Helix Components" size="small" type="inner" style={{ height: '100%' }}>
                   <Paragraph>Breakdown of individual segments within the helix:</Paragraph>
                   <ul style={{ fontSize: '13px', paddingLeft: '20px' }}>
-                    <li><strong>Type:</strong> Identifies the part (e.g., Stem, Hairpin, Internal Loop).</li>
-                    <li><strong>Size (2D / 3D):</strong> Compares the schematic length (2D) vs. the actual number of nucleotides involved in the stacking (3D).</li>
-                    <li><strong>Local Angle:</strong> The curvature specific to this segment (distinct from the global bend angle).</li>
+                    <li><strong>Type:</strong> Identifies the part (Stem, Hairpin, etc.). Bulges are further classified as <Tag color="orange">BULGE-IN</Tag> or <Tag color="orange">BULGE-OUT</Tag>.</li>
+                    <li><strong>Size (2D / 3D):</strong> Compares schematic length (2D) vs. actual nucleotides in the stacking path (3D).</li>
+                    <li><strong>Local Angle:</strong> The curvature specific to this segment.</li>
+                    <li><strong>Stacking Path:</strong> Displays the specific nucleotide sequence involved in coaxial stacking (e.g., 101→102→105).</li>
                     <li><strong>Sequence:</strong> The primary nucleotide sequence of the segment.</li>
                   </ul>
                   <Image 
@@ -218,10 +222,10 @@ const HelpPage: React.FC = () => (
                 <Card title="Coaxial Stacking (Junctions)" size="small" type="inner" style={{ height: '100%' }}>
                   <Paragraph>Analysis of stem interactions within the junction:</Paragraph>
                   <ul style={{ fontSize: '13px', paddingLeft: '20px' }}>
-                    <li><strong>ID & Range:</strong> Identifies the stems involved and their residue positions.</li>
+                    <li><strong>Pair ID:</strong> Identifies the two stems involved in the coaxial interaction (e.g., STEM 1 - STEM 3).</li>
+                    <li><strong>Chain:</strong> The molecular chain identifier.</li>
                     <li><strong>Angle:</strong> The relative geometric orientation angle between the two stacked stems.</li>
-                    <li><strong>Sequence:</strong> The sequence of the segments forming the stacking interface.</li>
-                    <li><strong>Status:</strong> Global stacking classification (e.g., "Full stacking", "Partial").</li>
+                    <li><strong>Sequence 1 / 2:</strong> A detailed 2D visual representation of the stacked stems, including nucleotide numbering and base-pairing markers.</li>
                   </ul>
                   <Image 
                     src="/guide/details_junction.png" 
@@ -241,13 +245,13 @@ const HelpPage: React.FC = () => (
         <div id="viewer" style={{ marginBottom: 60 }}>
           <Title level={4}><EyeOutlined /> 4. Structural Visualization (3D & 2D)</Title>
           <Paragraph>
-            Visual analysis is key to understanding RNA geometry. We provide two integrated tools that use a consistent color-coding scheme:
+            Visual analysis is key to understanding RNA geometry. We provide two integrated tools that use a consistent color-coding scheme to bridge 2D topology with 3D space:
           </Paragraph>
           <Row gutter={[16, 16]} style={{ display: 'flex' }}>
             <Col xs={24} lg={12} style={{ display: 'flex' }}>
               <Card title="2D Schematic" size="small" type="inner" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Paragraph style={{ flexGrow: 1 }}>
-                  Interactive secondary structure diagram. <strong>Gray segments</strong> represent stems involved in coaxial stacking, while <strong>other colors</strong> highlight unpaired nucleotides and specific loops.
+                  Interactive secondary structure diagram. <strong>Black segments</strong> represent stems involved in coaxial stacking. <strong>Blue lines</strong> indicate non-canonical base-pair interactions, while <strong>red lines</strong> highlight stacking paths that skip nucleotides (non-consecutive stacking).
                 </Paragraph>
                 <div style={{ textAlign: 'center', background: '#f5f5f5', borderRadius: '4px', padding: '10px' }}>
                   <Image 
@@ -262,7 +266,7 @@ const HelpPage: React.FC = () => (
             <Col xs={24} lg={12} style={{ display: 'flex' }}>
               <Card title="3D Model (Mol*)" size="small" type="inner" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Paragraph style={{ flexGrow: 1 }}>
-                  Full spatial preview. Just like in the 2D view, <strong>gray highlights</strong> are used to automatically identify and mark coaxial stems within the 3D structure.
+                  Full spatial preview. The 3D view is <strong>fully synchronized</strong> with the 2D schematic, using the same colors for all motif components. Stems involved in coaxial stacking are highlighted in <strong>black</strong> for easy identification.
                 </Paragraph>
                 <div style={{ textAlign: 'center', background: '#f5f5f5', borderRadius: '4px', padding: '10px' }}>
                   <Image 
@@ -400,10 +404,50 @@ const App: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(10);
   const [sortState, setSortState] = useState<{ field: string | null, order: 'asc' | 'desc' | null }>({ field: null, order: null });
 
-  const [currentSvg, setCurrentSvg] = useState<string | null>(null);  const [svgPreviewVisible, setSvgPreviewVisible] = useState<boolean>(false);
-  
-  const [stemOptions, setStemOptions] = useState<{value: string, label: string}[]>([]);
-  
+  const [currentSvg, setCurrentSvg] = useState<string | null>(null);
+  const [svgPreviewVisible, setSvgPreviewVisible] = useState<boolean>(false);
+
+  const [maxWayFromStats, setMaxWayFromStats] = useState<number>(0);
+  const selectedTypes = Form.useWatch('segment_type', form);
+
+  const stemOptions = React.useMemo(() => {
+    let maxToDisplay = maxWayFromStats;
+
+    if (selectedTypes && selectedTypes.length > 0) {
+      const counts = selectedTypes.map((t: string) => {
+        const match = t.match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+      maxToDisplay = Math.max(...counts);
+    }
+
+    return Array.from({ length: maxToDisplay }, (_, i) => ({
+      value: `STEM_${i + 1}`,
+      label: `STEM ${i + 1}`
+    }));
+  }, [selectedTypes, maxWayFromStats]);
+
+  // Clear stem selection if it becomes invalid after changing type
+  useEffect(() => {
+    const s1 = form.getFieldValue('stacking_stem1');
+    const s2 = form.getFieldValue('stacking_stem2');
+    let changed = false;
+    const newVals: any = {};
+
+    if (s1 && !stemOptions.find(o => o.value === s1)) {
+      newVals.stacking_stem1 = undefined;
+      changed = true;
+    }
+    if (s2 && !stemOptions.find(o => o.value === s2)) {
+      newVals.stacking_stem2 = undefined;
+      changed = true;
+    }
+
+    if (changed) {
+      form.setFieldsValue(newVals);
+    }
+  }, [stemOptions, form]);
+
   const [modal3dVisible, setModal3dVisible] = useState<boolean>(false);
   const [currentCif, setCurrentCif] = useState<string | null>(null);
 
@@ -481,28 +525,36 @@ const App: React.FC = () => {
   };
 
   const handleBatchDownload = async () => {
-    if (results.length === 0) return;
-    
     setLoading(true);
     try {
-      const filePaths: string[] = [];
-      results.forEach(item => {
-        if (item.path_cif) filePaths.push(item.path_cif);
-        if (item.path_pml) filePaths.push(item.path_pml);
-      });
+      const values = form.getFieldsValue();
+      const { angle_range, nt_range, ...rest } = values;
+      const params = new URLSearchParams();
+      if (rest.search_pdb) params.append('search_pdb', rest.search_pdb);
+      if (rest.sequence) params.append('sequence', rest.sequence);
+      if (rest.stacking_stem1) params.append('stacking_stem1', rest.stacking_stem1);
+      if (rest.stacking_stem2) params.append('stacking_stem2', rest.stacking_stem2);
+      if (rest.segment_type && Array.isArray(rest.segment_type)) {
+        rest.segment_type.forEach((t: string) => params.append('segment_type', t));
+      }
+      params.append('min_angle', (angle_range ? angle_range[0] : 0).toString());
+      params.append('max_angle', (angle_range ? angle_range[1] : 50).toString());
+      params.append('min_nt', (nt_range ? nt_range[0] : 0).toString());
+      params.append('max_nt', (nt_range ? nt_range[1] : maxNtLimit).toString());
 
-      const response = await axios.post(`${API_BASE}/api/download-zip`, filePaths, {
+      const response = await axios.get(`${API_BASE}/api/export-zip`, { 
+        params,
         responseType: 'blob'
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `RNABridge_results_${new Date().toISOString().slice(0, 10)}.zip`);
+      link.setAttribute('download', `RNABridge_all_results_${new Date().toISOString().slice(0, 10)}.zip`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      message.success(`Successfully downloaded ${results.length} structures.`);
+      message.success(`Successfully downloaded all filtered structures.`);
     } catch (error) {
       console.error('Download error:', error);
       message.error('Failed to generate ZIP archive.');
@@ -542,22 +594,38 @@ const App: React.FC = () => {
     message.info(`Filtered by type: ${name}`);
   };
 
-  const exportToCsv = () => {
-    if (results.length === 0) return;
-    
-    const headers = ['CIF ID', 'Method', 'Res. (Å)', 'Type', 'NTs', 'Bend Angle (°)'];
-    const rows = results.map(r => [
-      r.pdb_id,
-      r.method || 'N/A',
-      r.resolution ? r.resolution.toFixed(2) : '-',
-      r.type.toUpperCase(),
-      r.total_nt,
-      r.global_bend_angle !== null ? r.global_bend_angle.toFixed(1) : '-'
-    ]);
-    
-    const csvStr = [headers, ...rows].map(row => row.join(',')).join('\n');
-    setCsvContent(csvStr);
-    setCsvPreviewVisible(true);
+  const exportToCsv = async () => {
+    setLoading(true);
+    try {
+      const values = form.getFieldsValue();
+      const { angle_range, nt_range, ...rest } = values;
+      const params = new URLSearchParams();
+      if (rest.search_pdb) params.append('search_pdb', rest.search_pdb);
+      if (rest.sequence) params.append('sequence', rest.sequence);
+      if (rest.stacking_stem1) params.append('stacking_stem1', rest.stacking_stem1);
+      if (rest.stacking_stem2) params.append('stacking_stem2', rest.stacking_stem2);
+      if (rest.segment_type && Array.isArray(rest.segment_type)) {
+        rest.segment_type.forEach((t: string) => params.append('segment_type', t));
+      }
+      params.append('min_angle', (angle_range ? angle_range[0] : 0).toString());
+      params.append('max_angle', (angle_range ? angle_range[1] : 50).toString());
+      params.append('min_nt', (nt_range ? nt_range[0] : 0).toString());
+      params.append('max_nt', (nt_range ? nt_range[1] : maxNtLimit).toString());
+
+      if (sortState.field) {
+        params.append('sort_by', sortState.field);
+        params.append('sort_order', sortState.order || 'asc');
+      }
+
+      const response = await axios.get(`${API_BASE}/api/export-csv`, { params });
+      setCsvContent(response.data);
+      setCsvPreviewVisible(true);
+    } catch (error) {
+      console.error('CSV Export error:', error);
+      message.error('Failed to export CSV data.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const downloadCsv = () => {
@@ -588,15 +656,10 @@ const App: React.FC = () => {
       const response = await axios.get(`${API_BASE}/api/stats`);
       const maxVal = response.data.max_nt;
       const maxWay = response.data.max_way || 0;
-      
+
       setMaxNtLimit(maxVal);
       form.setFieldsValue({ nt_range: [0, maxVal] });
-      
-      const options = Array.from({ length: maxWay }, (_, i) => ({ 
-        value: `STEM_${i + 1}`, 
-        label: `STEM ${i + 1}` 
-      }));
-      setStemOptions(options);
+      setMaxWayFromStats(maxWay);
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -797,7 +860,7 @@ const App: React.FC = () => {
       sorter: true,
     },
     {
-      title: 'Length of NTs',
+      title: 'Nts Count',
       dataIndex: 'total_nt',
       key: 'total_nt',
       render: (val: number) => <Text strong>{val}</Text>,
@@ -950,21 +1013,29 @@ const App: React.FC = () => {
 
             if (Array.isArray(path[0])) {
               // Internal loop (multiple strands)
-              displayStr = path.map((p: any[], i: number) => p.length > 0 ? `${i + 1}: ${p[0]}...${p[p.length-1]}` : `${i+1}: []`).join(' | ');
-              fullTooltip = path.map((p: any[], i: number) => `${i + 1}: ${formatPath(p)}`).join('  ');
+              return (
+                <Tooltip title={path.map((p: any[], i: number) => `${i + 1}: ${formatPath(p)}`).join('  ')}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {path.map((p: any[], i: number) => (
+                      <Text key={i} code style={{ fontSize: '11px', cursor: 'help', whiteSpace: 'nowrap' }}>
+                        {p.length > 0 ? `${i + 1}: ${p[0]}...${p[p.length-1]}` : `${i+1}: []`}
+                      </Text>
+                    ))}
+                  </div>
+                </Tooltip>
+              );
             } else {
               // Bulge / Hairpin
               displayStr = path.length > 3 ? `${path[0]}→${path[1]}...${path[path.length-1]}` : formatPath(path);
               fullTooltip = formatPath(path);
+              return (
+                <Tooltip title={fullTooltip}>
+                  <Text code style={{ fontSize: '11px', cursor: 'help' }}>
+                    {displayStr}
+                  </Text>
+                </Tooltip>
+              );
             }
-
-            return (
-              <Tooltip title={fullTooltip}>
-                <Text code style={{ fontSize: '11px', cursor: 'help' }}>
-                  {displayStr}
-                </Text>
-              </Tooltip>
-            );
           }
         },
         { 
@@ -1265,7 +1336,7 @@ const App: React.FC = () => {
                    </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={12} lg={4}>
-                    <Form.Item label="Stacking Pair">
+                    <Form.Item label="Coaxially Stacked">
                       <Space.Compact style={{ width: '100%' }}>
                         <Form.Item name="stacking_stem1" noStyle>
                           <Select 
