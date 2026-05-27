@@ -24,6 +24,21 @@ MAX_BEND_ANGLE=$(get_config "MAX_BEND_ANGLE")
 
 echo "Configuration: CIF=$input_cif_dir, JSON=$output_json, HELICES=$output_helices, ANGLE=$MAX_BEND_ANGLE"
 
+# --- STEP 0: WAIT FOR DATABASE ---
+if [[ "$DATABASE_URL" == *"postgresql"* ]]; then
+    echo "--- STEP 0: Waiting for PostgreSQL... ---"
+    # Extract host and port from URL
+    db_host=$(echo $DATABASE_URL | sed -e 's|.*@||' -e 's|/.*||' -e 's|:.*||')
+    db_port=$(echo $DATABASE_URL | sed -e 's|.*:||' -e 's|/.*||')
+    [[ -z "$db_port" ]] && db_port=5432
+    
+    until printf "" 2>>/dev/null >>/dev/tcp/$db_host/$db_port; do
+        echo "Postgres is unavailable - sleeping"
+        sleep 2
+    done
+    echo "Postgres is up!"
+fi
+
 # --- STEP 1: PDB SYNCHRONIZATION ---
 echo "--- STEP 1: Synchronizing files with PDB ---"
 #$PY fetch_pdb.py
