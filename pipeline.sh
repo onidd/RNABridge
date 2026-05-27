@@ -14,7 +14,7 @@ export PATH="$X3DNA/bin:$PATH"
 
 # Get parameters from config.py
 get_config() {
-    $PY -c "import config; print(config.$1)"
+    $PY -c "import config; print(config.$1)" | tr -d '\r' | xargs
 }
 
 input_cif_dir=$(get_config "CIF_DIR")
