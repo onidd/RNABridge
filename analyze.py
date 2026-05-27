@@ -1,5 +1,6 @@
 import json
 import sys
+import os
 import rnabridge
 from rnabridge import HelicesBuilder, GeometryCalculator, Utils
 from config import MAX_BEND_ANGLE, JUNCTION_MAX_DIST
@@ -227,6 +228,9 @@ def main():
                 for loc in comp["location"]: add_to_set(loc)
                 add_to_set(comp["internal_stem"].get("strand5p")); add_to_set(comp["internal_stem"].get("strand3p"))
         junc["total_nt"] = len(unique_nts)
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     with open(output_file, 'w') as f: json.dump({"helices": formatted_helices, "junctions": junctions_output}, f, indent=4)
     print(f"Finished. Saved {len(formatted_helices)} helices and {len(junctions_output)} junctions.")
