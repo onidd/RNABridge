@@ -793,7 +793,7 @@ class Visualizer:
                     auth = mapping[str(ser)].get("auth", {})
                     num, icode = auth.get("number"), auth.get("icode") or auth.get("insertion_code")
                     if num is not None:
-                        label = f"{num}{(ord(str(icode).upper())-64):02d}" if icode and str(icode).strip() not in [".","?",""] else str(num)
+                        label = f"{num}{icode}" if icode and str(icode).strip() not in [".","?",""] else str(num)
                 nt_data[ser] = {'char': seq[i], 'struct': struct[i] if i < len(struct) else '.', 'color': color, 'label': label}
 
         if is_junction:

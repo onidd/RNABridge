@@ -92,7 +92,12 @@ def add_helix_segments(session, h_obj, h_data, pdb_id, bp_cache):
     
     def get_auth_label(ser):
         entry = bp_cache[pdb_id].get(str(ser))
-        return f"{entry['auth'].get('chain','')}{entry['auth'].get('number','')}" if entry and entry.get('auth') else str(ser)
+        if entry and entry.get('auth'):
+            auth = entry['auth']
+            num, icode = auth.get('number', ''), auth.get('icode') or auth.get('insertion_code')
+            icode_str = icode if icode and str(icode).strip() not in [".","?",""] else ""
+            return f"{auth.get('chain','')}{num}{icode_str}"
+        return str(ser)
     
     gid = 1
     up = h_data.get('strands', {}).get('upstream', {})
