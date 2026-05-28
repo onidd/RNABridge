@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Zakrzewski"
+    given-names: "Damian"
+    orcid: "https://orcid.org/0009-0002-3630-4180"
+  - family-names: "Zok"
+    given-names: "Tomasz"
+    orcid: "https://orcid.org/0000-0003-4103-9238"
+  - family-names: "Antczak"
+    given-names: "Maciej"
+    orcid: "https://orcid.org/0000-0002-5320-2023"
+title: "RNABridge"
+version: 1.0.0
+date-released: 2026-05-28
+url: "https://github.com/onidd/RNABridge"
+notes: "Pre-submission to Journal of Molecular Biology (JMB)"
