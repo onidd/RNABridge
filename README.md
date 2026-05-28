@@ -119,6 +119,7 @@ RNABridge uses a centralized `config.py`. Key environment variables:
 
 ## 📄 Data Sources & Licensing
 
+- **Project License**: This project is licensed under the [MIT License](LICENSE).
 - **X3DNA**: Users must obtain their own license from [x3dna.org](http://x3dna.org/).
 - **RCSB PDB**: Structural data is fetched from the [Protein Data Bank](https://www.rcsb.org/).
 
