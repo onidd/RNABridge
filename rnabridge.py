@@ -645,12 +645,13 @@ class GeometryCalculator:
 
 class Visualizer:
     """Handles 2D and 3D visualization exports (PyMOL scripts and VARNA JSON)."""
-    # Distinct palettes for Helix and Junction core
-    HELIX_COLORS = ["#13C2C2", "#52C41A", "#237804", "#08979C", "#389E0D", "#00474F", "#006D75", "#237804"]
-    JUNCTION_COLORS = ["#722ED1", "#EB2F96", "#FAAD14", "#FA8C16", "#A0D911", "#531DAB", "#C41D7F", "#D4380D"]
+    # High-contrast palette for Helices
+    HELIX_COLORS = ["#1890FF", "#A0D911", "#722ED1", "#13C2C2", "#EB2F96", "#237804", "#FAAD14", "#2F54EB"]
+    # Vibrant Warm Palette for Junction Core
+    JUNCTION_COLORS = ["#FA8C16", "#FADB14", "#EB2F96", "#FA541C", "#A0D911", "#D4380D", "#C41D7F", "#722ED1"]
     
-    PYMOL_HELIX = ["teal", "green", "darkgreen", "cyan", "lime", "deepteal", "aquamarine", "forest"]
-    PYMOL_JUNCTION = ["purple", "hotpink", "orange", "gold", "chartreuse", "magenta", "deep-pink", "red-orange"]
+    PYMOL_HELIX = ["blue", "lime", "purple", "cyan", "hotpink", "darkgreen", "gold", "royal"]
+    PYMOL_JUNCTION = ["orange", "yellow", "hotpink", "red", "lime", "darkorange", "magenta", "violet"]
 
     @staticmethod
     def hex_to_rgb(hex_color: str) -> Dict[str, int]:

@@ -1624,27 +1624,25 @@ const App: React.FC = () => {
                   </Space>
                 </Col>
                 <Col xs={24} md={8}>
-                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Unpaired segments & loop motifs</Text>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {(currentRecord.type === 'helix' ? 
-                      ["#13C2C2", "#52C41A", "#237804", "#08979C", "#389E0D", "#00474F", "#006D75", "#237804"] : 
-                      ["#722ED1", "#EB2F96", "#FAAD14", "#FA8C16", "#A0D911", "#531DAB", "#C41D7F", "#D4380D"]
-                    ).map(c => (
-                      <Tooltip key={c} title={c}>
-                        <div style={{ width: '16px', height: '16px', background: c, borderRadius: '2px' }}></div>
-                      </Tooltip>
-                    ))}
-                    <Text type="secondary" style={{ fontSize: '12px', marginLeft: '4px' }}>
-                      ({currentRecord.type === 'helix' ? 'Helix' : 'Junction Core'} Palette)
-                    </Text>
-                  </div>
-                  {currentRecord.type === 'junction' && (
-                    <div style={{ marginTop: '8px' }}>
-                      <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                        Note: Extended helices use the Helix Palette.
-                      </Text>
+                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Component Palettes</Text>
+                  <Space direction="vertical" size={8}>
+                    <div>
+                      <Text size="small" type="secondary" style={{ display: 'block', marginBottom: '4px' }}>Motifs:</Text>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {["#1890FF", "#A0D911", "#722ED1", "#13C2C2", "#EB2F96", "#237804", "#FAAD14", "#2F54EB"].map(c => (
+                          <div key={c} style={{ width: '12px', height: '12px', background: c, borderRadius: '2px' }}></div>
+                        ))}
+                      </div>
                     </div>
-                  )}
+                    <div>
+                      <Text size="small" type="secondary" style={{ display: 'block', marginBottom: '4px' }}>Unpaired Strands Linking Junction Stems:</Text>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {["#FA8C16", "#FADB14", "#EB2F96", "#FA541C", "#A0D911", "#D4380D", "#C41D7F", "#722ED1"].map(c => (
+                          <div key={c} style={{ width: '12px', height: '12px', background: c, borderRadius: '2px' }}></div>
+                        ))}
+                      </div>
+                    </div>
+                  </Space>
                 </Col>
               </Row>
             </div>
