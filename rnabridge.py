@@ -645,8 +645,12 @@ class GeometryCalculator:
 
 class Visualizer:
     """Handles 2D and 3D visualization exports (PyMOL scripts and VARNA JSON)."""
-    MOTIF_COLORS = ["#4A90E2", "#50E3C2", "#F5A623", "#D0021B", "#BD10E0", "#F8E71C", "#7ED321", "#8B572A"]
-    PYMOL_COLORS = ["blue", "green", "orange", "red", "magenta", "yellow", "lime", "brown"]
+    # Distinct palettes for Helix and Junction core
+    HELIX_COLORS = ["#13C2C2", "#52C41A", "#237804", "#08979C", "#389E0D", "#00474F", "#006D75", "#237804"]
+    JUNCTION_COLORS = ["#722ED1", "#EB2F96", "#FAAD14", "#FA8C16", "#A0D911", "#531DAB", "#C41D7F", "#D4380D"]
+    
+    PYMOL_HELIX = ["teal", "green", "darkgreen", "cyan", "lime", "deepteal", "aquamarine", "forest"]
+    PYMOL_JUNCTION = ["purple", "hotpink", "orange", "gold", "chartreuse", "magenta", "deep-pink", "red-orange"]
 
     @staticmethod
     def hex_to_rgb(hex_color: str) -> Dict[str, int]:
@@ -682,14 +686,14 @@ class Visualizer:
                         res = add_res(s_d.get('strand5p')) + add_res(s_d.get('strand3p'))
                         if res: comp3d.append({'id': s_n.upper(), 'type': 'STEM', 'residues': res})
 
-        def process_components(target, prefix=""):
+        def process_components(target, palette, prefix=""):
             for i, c in enumerate(target.get('components', [])):
                 loc_res = []
                 for loc in c.get('location', []): loc_res.extend(add_res(loc))
                 if loc_res:
                     c_type = c.get('type', 'MOTIF').upper()
                     comp_id = f"{prefix}{c.get('type')}_{c.get('m_id', i+1)}"
-                    color = Visualizer.hex_to_rgb(Visualizer.MOTIF_COLORS[i % len(Visualizer.MOTIF_COLORS)]) if 'STEM' not in c_type else None
+                    color = Visualizer.hex_to_rgb(palette[i % 8]) if 'STEM' not in c_type else None
                     comp3d.append({'id': comp_id, 'type': c_type, 'residues': loc_res, 'color': color})
                 i_stem = c.get('internal_stem', {})
                 ires = add_res(i_stem.get('strand5p')) + add_res(i_stem.get('strand3p'))
@@ -698,7 +702,7 @@ class Visualizer:
         if is_junction:
             for i, loc in enumerate(data_obj.get('location', [])):
                 res = add_res(loc)
-                if res: comp3d.append({'id': f"LOOP_{i+1}", 'type': 'LOOP', 'residues': res, 'color': Visualizer.hex_to_rgb(Visualizer.MOTIF_COLORS[i % len(Visualizer.MOTIF_COLORS)])})
+                if res: comp3d.append({'id': f"LOOP_{i+1}", 'type': 'LOOP', 'residues': res, 'color': Visualizer.hex_to_rgb(Visualizer.JUNCTION_COLORS[i % 8])})
             process_stems(data_obj)
             for ext in data_obj.get('extended_helices', []):
                 ext_id = ext.get('h_id', 'EXT')
@@ -706,10 +710,10 @@ class Visualizer:
                     s_d = ext.get('strands', {}).get(s_t, {})
                     res = add_res(s_d.get('strand5p')) + add_res(s_d.get('strand3p'))
                     if res: comp3d.append({'id': f"EXT_{ext_id}_{s_t.upper()}", 'type': 'EXTENDED_STEM', 'residues': res})
-                process_components(ext, prefix=f"EXT_{ext_id}_")
+                process_components(ext, Visualizer.HELIX_COLORS, prefix=f"EXT_{ext_id}_")
         else:
             process_stems(data_obj)
-            process_components(data_obj)
+            process_components(data_obj, Visualizer.HELIX_COLORS)
         return comp3d
 
     @staticmethod
@@ -778,13 +782,19 @@ class Visualizer:
             sname = "junc" if is_junction else "helix"
             out.write(f"select {sname}, {full_sel}\nshow sticks, {sname}\nshow cartoon, {sname}\nset cartoon_sampling, 20\ncolor gray80, {sname}\n\n")
             if is_junction:
+                # Core Loop
                 for i, strand in enumerate(data.get("location", [])):
                     sel = Visualizer._get_single_sel(strand)
-                    if sel: out.write(f"select s_{i}, {sel}\ncolor {Visualizer.PYMOL_COLORS[i % 8]}, s_{i}\n")
+                    if sel: out.write(f"select s_{i}, {sel}\ncolor {Visualizer.PYMOL_JUNCTION[i % 8]}, s_{i}\n")
+                # Extended Helices
+                for h_idx, ext in enumerate(data.get("extended_helices", [])):
+                    for c_idx, comp in enumerate(ext.get("components", [])):
+                        m_sel = " or ".join([Visualizer._get_single_sel(loc) for loc in comp.get("location", []) if Visualizer._get_single_sel(loc)])
+                        if m_sel: out.write(f"select ext_{h_idx}_m_{c_idx}, {m_sel}\ncolor {Visualizer.PYMOL_HELIX[c_idx % 8]}, ext_{h_idx}_m_{c_idx}\n")
             else:
                 for i, comp in enumerate(data.get("components", [])):
                     m_sel = " or ".join([Visualizer._get_single_sel(loc) for loc in comp.get("location", []) if Visualizer._get_single_sel(loc)])
-                    if m_sel: out.write(f"select m_{i}, {m_sel}\ncolor {Visualizer.PYMOL_COLORS[i % 8]}, m_{i}\n")
+                    if m_sel: out.write(f"select m_{i}, {m_sel}\ncolor {Visualizer.PYMOL_HELIX[i % 8]}, m_{i}\n")
             out.write(f"zoom {sname}\norient {sname}\n")
 
     @staticmethod
@@ -817,17 +827,17 @@ class Visualizer:
                 if "stem" in k:
                     c = "#555555" if k in stacked else "#D3D3D3"
                     add_s(stem.get("strand5p"), c); add_s(stem.get("strand3p"), c)
-            for i, s in enumerate(data.get("location", [])): add_s(s, Visualizer.MOTIF_COLORS[i % 8])
+            for i, s in enumerate(data.get("location", [])): add_s(s, Visualizer.JUNCTION_COLORS[i % 8])
             for ext_h in data.get("extended_helices", []):
                 for i, comp in enumerate(ext_h.get("components", [])):
-                    for loc in comp.get("location", []): add_s(loc, Visualizer.MOTIF_COLORS[i % 8])
+                    for loc in comp.get("location", []): add_s(loc, Visualizer.HELIX_COLORS[i % 8])
         else:
             for k in ["upstream", "downstream"]:
                 add_s(data.get("strands", {}).get(k, {}).get("strand5p"), "#D3D3D3"); add_s(data.get("strands", {}).get(k, {}).get("strand3p"), "#D3D3D3")
             for comp in data.get("components", []):
                 add_s(comp.get("internal_stem", {}).get("strand5p"), "#D3D3D3"); add_s(comp.get("internal_stem", {}).get("strand3p"), "#D3D3D3")
             for i, comp in enumerate(data.get("components", [])):
-                for loc in comp.get("location", []): add_s(loc, Visualizer.MOTIF_COLORS[i % 8])
+                for loc in comp.get("location", []): add_s(loc, Visualizer.HELIX_COLORS[i % 8])
 
         sorted_serials = sorted(nt_data.keys())
         counts = Counter(nt_data[s]['label'] for s in nt_data)
