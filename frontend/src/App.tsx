@@ -1627,8 +1627,8 @@ const App: React.FC = () => {
                   <Text strong style={{ display: 'block', marginBottom: '8px' }}>Unpaired segments & loop motifs</Text>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {(currentRecord.type === 'helix' ? 
-                      ["#8DD3C7", "#BEBADA", "#B3DE69", "#BC80BD", "#CCEBC5", "#FFED6F", "#9EBCDA", "#FCCDE5"] : 
-                      ["#FDB462", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3", "#66C2A5"]
+                      ["#13C2C2", "#52C41A", "#237804", "#08979C", "#389E0D", "#00474F", "#006D75", "#237804"] : 
+                      ["#722ED1", "#EB2F96", "#FAAD14", "#FA8C16", "#A0D911", "#531DAB", "#C41D7F", "#D4380D"]
                     ).map(c => (
                       <Tooltip key={c} title={c}>
                         <div style={{ width: '16px', height: '16px', background: c, borderRadius: '2px' }}></div>
@@ -1638,6 +1638,13 @@ const App: React.FC = () => {
                       ({currentRecord.type === 'helix' ? 'Helix' : 'Junction Core'} Palette)
                     </Text>
                   </div>
+                  {currentRecord.type === 'junction' && (
+                    <div style={{ marginTop: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                        Note: Extended helices use the Helix Palette.
+                      </Text>
+                    </div>
+                  )}
                 </Col>
               </Row>
             </div>
