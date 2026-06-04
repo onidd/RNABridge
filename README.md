@@ -12,10 +12,10 @@ RNAbridge is a professional platform for the analysis of RNA structural motifs. 
 
 ## 🖼️ Visual Overview
 
-| Search & Discovery | 3D Structural Analysis | Statistical Insights |
-| :---: | :---: | :---: |
-| ![Search Panel](frontend/public/guide/search_panel.png) | ![3D Preview](frontend/public/guide/preview_3d.png) | ![Stats Pie](frontend/public/guide/stats_pie.png) |
-| **Searchable Database** | **Interactive Mol* Viewer** | **Automated Statistics** |
+| Integrated Structural Preview | Statistical Insights |
+| :---: | :---: |
+| ![Combined Preview](frontend/public/guide/preview_combined.png) | ![Stats Histogram](frontend/public/guide/stats_histogram.png) |
+| **Synchronized 2D & 3D Viewer** | **Automated Geometry Statistics** |
 
 ---
 
