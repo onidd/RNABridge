@@ -25,7 +25,8 @@ import {
   Image,
   Tag,
   Menu,
-  Anchor
+  Anchor,
+  Tabs
 } from 'antd';
 import { 
   SearchOutlined, 
@@ -76,9 +77,9 @@ const HelpPage: React.FC = () => (
       <Card style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
 
         <div id="intro" style={{ marginBottom: 60 }}>
-          <Title level={2} style={{ textAlign: 'center' }}>RNABridge User Guide</Title>
+          <Title level={2} style={{ textAlign: 'center' }}>RNAbridge User Guide</Title>
           <Paragraph style={{ fontSize: '16px', textAlign: 'center', color: '#666' }}>
-            RNABridge is an advanced platform for identifying and analyzing RNA structural motifs. 
+            RNAbridge is an advanced platform for identifying and analyzing RNA structural motifs. 
             This guide will help you fully utilize the tool's capabilities.
           </Paragraph>
         </div>
@@ -174,20 +175,20 @@ const HelpPage: React.FC = () => (
             <li><strong>Source / Molecule:</strong> Displays the name of the molecule and the organism from which the RNA was derived.</li>
             <li><strong>Method:</strong> The experimental technique used to determine the structure (e.g., X-ray Diffraction, Cryo-EM).</li>
             <li><strong>Res. (Å):</strong> The experimental resolution of the structure in Angstroms. Lower values indicate higher detail.</li>
-            <li><strong>Nts Count:</strong> Total number of nucleotides contained within the motif.</li>
+            <li><strong>Nts Count:</strong> Total number of nucleotides contained within the identified motif.</li>
             <li><strong>Bend Angle (°):</strong> The global curvature of the motif. High angles indicate sharp structural bends.</li>
             <li><strong>Type:</strong> Categorizes the motif as either a <strong>HELIX</strong> or a <strong>JUNCTION</strong>, along with its specific segment count.</li>
-            <li><strong>Visualization:</strong> Quick access to the interactive <strong>2D Schematic</strong> and <strong>3D Model</strong> viewers.</li>
-            <li><strong>Download:</strong> Each row contains direct links to download the <strong>CIF</strong> (3D coordinates) and <strong>PML</strong> (PyMOL visualization script) files for that specific motif.</li>
+            <li><strong>Visualization:</strong> Quick access to the <strong>Preview</strong> button, which opens the integrated 2D/3D structure viewer.</li>
+            <li><strong>Download:</strong> Each row contains direct links to download the <strong>CIF</strong> (3D coordinates) and <strong>PML</strong> (PyMOL visualization script) files.</li>
           </ul>
 
           <div style={{ marginBottom: 32 }}>
-            <Text strong>Record Example (5-way Junction):</Text>
+            <Text strong>Record Example (3-way Junction):</Text>
             <Image 
               src="/guide/table_row.png" 
               alt="Single record example"
               style={{ borderRadius: '8px', border: '1px solid #f0f0f0', marginTop: 8 }}
-              fallback="https://placehold.co/1000x150?text=8XTP+5-way-junction+Record+Screenshot"
+              fallback="https://placehold.co/1000x150?text=8XTP+3-way-junction+Record+Screenshot"
             />
           </div>
 
@@ -242,44 +243,29 @@ const HelpPage: React.FC = () => (
 
         <Divider />
 
-        {/* SECTION 4: Visualization (RESPONSIVE) */}
+        {/* SECTION 4: Visualization */}
         <div id="viewer" style={{ marginBottom: 60 }}>
-          <Title level={4}><EyeOutlined /> 4. Structural Visualization (3D & 2D)</Title>
+          <Title level={4}><EyeOutlined /> 4. Integrated Structural Preview (3D & 2D)</Title>
           <Paragraph>
-            Visual analysis is key to understanding RNA geometry. We provide two integrated tools that use a consistent color-coding scheme to bridge 2D topology with 3D space:
+            The <strong>Structure Preview</strong> tool provides a synchronized side-by-side view of the identified motif, bridging secondary topology with tertiary geometry.
           </Paragraph>
-          <Row gutter={[16, 16]} style={{ display: 'flex' }}>
-            <Col xs={24} lg={12} style={{ display: 'flex' }}>
-              <Card title="2D Schematic" size="small" type="inner" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Paragraph style={{ flexGrow: 1 }}>
-                  Interactive secondary structure diagram. <strong>Black segments</strong> represent stems involved in coaxial stacking. <strong>Blue lines</strong> indicate non-canonical base-pair interactions, while <strong>red lines</strong> highlight stacking paths that skip nucleotides (non-consecutive stacking).
-                </Paragraph>
-                <div style={{ textAlign: 'center', background: '#f5f5f5', borderRadius: '4px', padding: '10px' }}>
-                  <Image 
-                    src="/guide/preview_2d.png" 
-                    alt="2D Preview"
-                    style={{ height: '250px', width: '100%', objectFit: 'contain', borderRadius: '4px' }}
-                    fallback="https://placehold.co/500x350?text=2D+Preview+Screenshot"
-                  />
-                </div>
-              </Card>
-            </Col>
-            <Col xs={24} lg={12} style={{ display: 'flex' }}>
-              <Card title="3D Model (Mol*)" size="small" type="inner" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Paragraph style={{ flexGrow: 1 }}>
-                  Full spatial preview. The 3D view is <strong>fully synchronized</strong> with the 2D schematic, using the same colors for all motif components. Stems involved in coaxial stacking are highlighted in <strong>black</strong> for easy identification.
-                </Paragraph>
-                <div style={{ textAlign: 'center', background: '#f5f5f5', borderRadius: '4px', padding: '10px' }}>
-                  <Image 
-                    src="/guide/preview_3d.png" 
-                    alt="3D Model"
-                    style={{ height: '250px', width: '100%', objectFit: 'contain', borderRadius: '4px' }}
-                    fallback="https://placehold.co/500x350?text=3D+Model+Screenshot"
-                  />
-                </div>
-              </Card>
-            </Col>
-          </Row>
+
+          <Card size="small" type="inner" style={{ borderRadius: '8px' }}>
+            <ul style={{ marginBottom: 16 }}>
+              <li><strong>2D Schematic:</strong> An interactive diagram displaying base-pairing and connectivity. Loop core strands and motifs are color-coded using distinct vibrant palettes.</li>
+              <li><strong>3D Model (Mol*):</strong> A full spatial representation, perfectly synchronized with the 2D view. Components use the same colors, allowing for instant identification of structural features.</li>
+              <li><strong>Component Legend:</strong> A comprehensive legend displayed below the viewers, showing both the Helix and Junction palettes simultaneously for easy reference.</li>
+            </ul>
+
+            <div style={{ textAlign: 'center', background: '#f5f5f5', borderRadius: '4px', padding: '10px' }}>
+              <Image 
+                src="/guide/preview_combined.png" 
+                alt="Combined 2D/3D Preview"
+                style={{ width: '100%', borderRadius: '4px', border: '1px solid #ddd' }}
+                fallback="https://placehold.co/1000x600?text=Combined+2D+and+3D+Preview+Screenshot"
+              />
+            </div>
+          </Card>
         </div>
 
         <Divider />
@@ -288,7 +274,7 @@ const HelpPage: React.FC = () => (
         <div id="export" style={{ marginBottom: 40 }}>
           <Title level={4}><DownloadOutlined /> 5. Data Export & Batch Downloads</Title>
           <Paragraph>
-            RNABridge supports multiple ways to save your findings for offline research:
+            RNAbridge supports multiple ways to save your findings for offline research:
           </Paragraph>
           <ul style={{ marginBottom: 24 }}>
             <li><strong>Export to CSV:</strong> Generates a spreadsheet containing the metadata and geometric parameters for all currently filtered records.</li>
@@ -311,12 +297,12 @@ const AboutPage: React.FC = () => (
   <Row justify="center">
     <Col xs={24} lg={20} xl={16}>
       <Card style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-        <Title level={2} style={{ textAlign: 'center', marginBottom: '40px' }}>About RNABridge</Title>
+        <Title level={2} style={{ textAlign: 'center', marginBottom: '40px' }}>About RNAbridge</Title>
         
         <section style={{ marginBottom: '40px' }}>
           <Title level={4}>Mission & Motivation</Title>
           <Paragraph style={{ fontSize: '16px', lineHeight: '1.7' }}>
-            RNABridge is a specialized repository and analysis platform designed to bridge the gap between complex 3D RNA structures and actionable geometric insights. While databases like the Protein Data Bank (PDB) provide raw coordinates, researchers often require specific parameters—such as <strong>global and local bend angles</strong>, <strong>segment orientations</strong>, and <strong>coaxial stacking patterns</strong>—to fully understand RNA folding and biological function.
+            RNAbridge is a specialized repository and analysis platform designed to bridge the gap between complex 3D RNA structures and actionable geometric insights. While databases like the Protein Data Bank (PDB) provide raw coordinates, researchers often require specific parameters—such as <strong>global and local bend angles</strong>, <strong>segment orientations</strong>, and <strong>coaxial stacking patterns</strong>—to fully understand RNA folding and biological function.
           </Paragraph>
           <Paragraph style={{ fontSize: '16px', lineHeight: '1.7' }}>
             Our mission is to provide an accessible "bridge" to this structural data, offering a pre-analyzed collection of RNA helices and junctions extracted from the entire PDB and processed with high-precision bioinformatics tools.
@@ -328,7 +314,7 @@ const AboutPage: React.FC = () => (
         <section style={{ marginBottom: '40px' }}>
           <Title level={4}>Technical Pipeline</Title>
           <Paragraph>
-            The RNABridge database is built on a robust automated pipeline:
+            The RNAbridge database is built on a robust automated pipeline:
           </Paragraph>
           <ul style={{ lineHeight: '2' }}>
             <li><strong>Data Acquisition:</strong> Automated extraction and filtering of RNA-containing structures from the Protein Data Bank.</li>
@@ -602,7 +588,7 @@ const App: React.FC = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `RNABridge_all_results_${new Date().toISOString().slice(0, 10)}.zip`);
+      link.setAttribute('download', `RNAbridge_all_results_${new Date().toISOString().slice(0, 10)}.zip`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -685,7 +671,7 @@ const App: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `RNABridge_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `RNAbridge_export_${new Date().toISOString().slice(0, 10)}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -1179,7 +1165,7 @@ const App: React.FC = () => {
     <Layout style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
       <Header style={{ background: '#001529', padding: '0 20px', display: 'flex', alignItems: 'center' }}>
         <Space style={{ marginRight: '40px' }}>
-          <img src="/rnabridge.svg" alt="RNABridge Logo" style={{ height: '50px', verticalAlign: 'middle' }} />
+          <img src="/rnabridge.svg" alt="RNAbridge Logo" style={{ height: '50px', verticalAlign: 'middle' }} />
         </Space>
         <Menu 
           theme="dark" 
@@ -1201,9 +1187,9 @@ const App: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col span={24}>
                 <Card style={{ borderRadius: '8px' }}>
-                  <Title level={4}>About RNABridge</Title>
+                  <Title level={4}>About RNAbridge</Title>
                   <Text style={{ fontSize: '16px' }}>
-                    RNABridge is a specialized platform designed for the identification and analysis of RNA structural motifs, focusing on helices and junctions. It enables researchers to explore complex RNA architectures, identify coaxial stacking patterns, and access detailed geometric data for various RNA segments to support structural biology research.
+                    RNAbridge is a specialized platform designed for the identification and analysis of RNA structural motifs, focusing on helices and junctions. It enables researchers to explore complex RNA architectures, identify coaxial stacking patterns, and access detailed geometric data for various RNA segments to support structural biology research.
                   </Text>
                 </Card>
               </Col>
@@ -1530,7 +1516,7 @@ const App: React.FC = () => {
     </Routes>
   </Content>
       <Footer style={{ textAlign: 'center', color: '#888', background: '#fff', borderTop: '1px solid #e8e8e8' }}>
-        <strong>RNABridge</strong> ©2026 | System for local RNA geometry analysis
+        <strong>RNAbridge</strong> ©2026 | System for local RNA geometry analysis
       </Footer>
 
       <style>{`
@@ -1549,7 +1535,7 @@ const App: React.FC = () => {
           display: flex;
           flex-direction: column;
         }
-        @media (max-width: 992px) {
+        @media (max-width: 1200px) {
           .preview-modal-container {
             display: none;
           }
@@ -1557,7 +1543,7 @@ const App: React.FC = () => {
             display: block;
           }
         }
-        @media (min-width: 993px) {
+        @media (min-width: 1201px) {
           .preview-modal-tabs {
             display: none;
           }
@@ -1606,28 +1592,64 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* SMALL SCREENS: Tabs */}
+            <div className="preview-modal-tabs">
+              <Tabs
+                defaultActiveKey="2d"
+                centered
+                items={[
+                  {
+                    key: '2d',
+                    label: <span><EyeOutlined /> 2D Schematic</span>,
+                    children: (
+                      <div style={{ height: '700px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                        {currentRecord.path_svg ? (
+                          <img 
+                            src={`${API_BASE}/api/files/${currentRecord.path_svg}`} 
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                            alt="2D Schematic"
+                          />
+                        ) : <div style={{ color: '#888' }}>No 2D visualization available</div>}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: '3d',
+                    label: <span><DeploymentUnitOutlined /> 3D Model</span>,
+                    children: (
+                      <div style={{ height: '700px', background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large">Loading 3D model...</Spin></div>}>
+                          <MolstarViewer url={`${API_BASE}/api/files/${currentRecord.path_cif}`} highlights={highlightData} height="680px" />
+                        </Suspense>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+
             {/* LEGEND SECTION */}
             <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee' }}>
               <Row gutter={[24, 16]}>
                 <Col xs={24} md={8}>
                   <Text strong style={{ display: 'block', marginBottom: '8px' }}>Line Notations</Text>
                   <Space direction="vertical" size={4}>
-                    <Space><div style={{ width: '20px', height: '2px', background: '#1890ff' }}></div> <Text size="small">Non-canonical base pairs</Text></Space>
-                    <Space><div style={{ width: '20px', height: '2px', background: '#ff0000' }}></div> <Text size="small">Stacking paths</Text></Space>
+                    <Space><div style={{ width: '20px', height: '2px', background: '#1890ff' }}></div> <Text style={{ fontSize: '12px' }}>Non-canonical base pairs</Text></Space>
+                    <Space><div style={{ width: '20px', height: '2px', background: '#ff0000' }}></div> <Text style={{ fontSize: '12px' }}>Stacking paths</Text></Space>
                   </Space>
                 </Col>
                 <Col xs={24} md={8}>
                   <Text strong style={{ display: 'block', marginBottom: '8px' }}>Stem Highlights</Text>
                   <Space direction="vertical" size={4}>
-                    <Space><div style={{ width: '12px', height: '12px', background: '#000000', borderRadius: '2px' }}></div> <Text size="small">Coaxial Stacking</Text></Space>
-                    <Space><div style={{ width: '12px', height: '12px', background: '#d3d3d3', borderRadius: '2px' }}></div> <Text size="small">Generic / Other Stems</Text></Space>
+                    <Space><div style={{ width: '12px', height: '12px', background: '#000000', borderRadius: '2px' }}></div> <Text style={{ fontSize: '12px' }}>Coaxial Stacking</Text></Space>
+                    <Space><div style={{ width: '12px', height: '12px', background: '#d3d3d3', borderRadius: '2px' }}></div> <Text style={{ fontSize: '12px' }}>Generic / Other Stems</Text></Space>
                   </Space>
                 </Col>
                 <Col xs={24} md={8}>
                   <Text strong style={{ display: 'block', marginBottom: '8px' }}>Component Palettes</Text>
                   <Space direction="vertical" size={8}>
                     <div>
-                      <Text size="small" type="secondary" style={{ display: 'block', marginBottom: '4px' }}>Motifs:</Text>
+                      <Text type="secondary" style={{ display: 'block', marginBottom: '4px', fontSize: '12px' }}>Motifs:</Text>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {["#1890FF", "#A0D911", "#722ED1", "#13C2C2", "#EB2F96", "#237804", "#FAAD14", "#2F54EB"].map(c => (
                           <div key={c} style={{ width: '12px', height: '12px', background: c, borderRadius: '2px' }}></div>
@@ -1635,7 +1657,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <Text size="small" type="secondary" style={{ display: 'block', marginBottom: '4px' }}>Unpaired Strands Linking Junction Stems:</Text>
+                      <Text type="secondary" style={{ display: 'block', marginBottom: '4px', fontSize: '12px' }}>Unpaired Strands Linking Junction Stems:</Text>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {["#FA8C16", "#FADB14", "#EB2F96", "#FA541C", "#A0D911", "#D4380D", "#C41D7F", "#722ED1"].map(c => (
                           <div key={c} style={{ width: '12px', height: '12px', background: c, borderRadius: '2px' }}></div>
