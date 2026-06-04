@@ -1691,7 +1691,7 @@ const App: React.FC = () => {
         title={<span><FileTextOutlined /> CSV File Preview</span>}
         open={csvPreviewVisible}
         onCancel={() => setCsvPreviewVisible(false)}
-        width={700}
+        width={1000}
         footer={[
           <Button key="cancel" onClick={() => setCsvPreviewVisible(false)}>
             Cancel
@@ -1701,8 +1701,8 @@ const App: React.FC = () => {
           </Button>
         ]}
       >
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '4px', maxHeight: '400px', overflowY: 'auto' }}>
-          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>{csvContent}</pre>
+        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '4px', maxHeight: '600px', overflowY: 'auto' }}>
+          <pre style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{csvContent}</pre>
         </div>
         <Text type="secondary" style={{ display: 'block', marginTop: '10px' }}>
           The file contains {results.length} rows of data (plus header).

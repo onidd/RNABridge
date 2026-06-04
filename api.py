@@ -244,17 +244,17 @@ async def export_csv(
         
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['CIF ID', 'Source', 'Type', 'Segment Count', 'NTs', 'Bend Angle (deg)', 'Res. (A)', 'Method'])
+        writer.writerow(['CIF ID', 'Source/Molecule', 'Method', 'Res. (A)', 'Nts Count', 'Bend Angle (deg)', 'Type', 'Segment Count'])
         for r in combined:
             writer.writerow([
                 r[0],                              # CIF ID
-                r[1] or "Unknown",                 # Source
-                r[4],                              # Type
-                r[5],                              # Segment Count
-                r[6],                              # NTs
-                f"{r[7]:.1f}" if r[7] is not None else "-", 
-                f"{r[3]:.2f}" if r[3] is not None else "-",
-                r[2] or "N/A"                      # Method
+                r[1] or "Unknown",                 # Source/Molecule
+                r[2] or "N/A",                     # Method
+                f"{r[3]:.2f}" if r[3] is not None else "-", # Res.
+                r[6],                              # Nts Count
+                f"{r[7]:.1f}" if r[7] is not None else "-", # Bend Angle
+                r[4],                              # Type (HELIX/JUNCTION)
+                r[5]                               # Segment Count
             ])
         
         return PlainTextResponse(output.getvalue(), media_type="text/csv")
