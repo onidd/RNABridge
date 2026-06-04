@@ -273,7 +273,7 @@ async def download_zip(file_paths: List[str]):
     return StreamingResponse(
         zip_buffer, 
         media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": "attachment; filename=RNABridge_results.zip"}
+        headers={"Content-Disposition": "attachment; filename=RNAbridge_results.zip"}
     )
 
 @app.get("/api/export-zip")
@@ -325,7 +325,7 @@ async def export_zip(
         return StreamingResponse(
             zip_buffer, 
             media_type="application/x-zip-compressed",
-            headers={"Content-Disposition": "attachment; filename=RNABridge_all_results.zip"}
+            headers={"Content-Disposition": "attachment; filename=RNAbridge_all_results.zip"}
         )
 
 @app.get("/api/stats")

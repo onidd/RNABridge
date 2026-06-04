@@ -1,4 +1,4 @@
-# --- RNABridge Dependencies ---
+# --- RNAbridge Dependencies ---
 # IMPORTANT: If not using Conda, PyMOL must be installed manually 
 # via system package manager (e.g., sudo apt install pymol).
 

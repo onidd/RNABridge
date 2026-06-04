@@ -1,6 +1,6 @@
-# RNABridge 🧬
+# RNAbridge 🧬
 
-RNABridge is a professional platform for the analysis of RNA structural motifs. It automates the extraction, categorization, and visualization of complex super-helices and junctions from CIF data, providing a searchable database with interactive 2D and 3D perspectives.
+RNAbridge is a professional platform for the analysis of RNA structural motifs. It automates the extraction, categorization, and visualization of complex super-helices and junctions from CIF data, providing a searchable database with interactive 2D and 3D perspectives.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20428884.svg)](https://doi.org/10.5281/zenodo.20428884)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
@@ -49,7 +49,7 @@ docker-compose up --build
 
 ## 🛠️ Installation & Local Development
 
-If you prefer to run RNABridge locally (e.g., for development), ensure the following prerequisites are met:
+If you prefer to run RNAbridge locally (e.g., for development), ensure the following prerequisites are met:
 
 ### Prerequisites
 
@@ -110,7 +110,7 @@ docker-compose exec app bash pipeline.sh
 
 ## ⚙️ Configuration
 
-RNABridge uses a centralized `config.py`. Key environment variables:
+RNAbridge uses a centralized `config.py`. Key environment variables:
 
 - `DATABASE_URL`: Connection string. Defaults to SQLite (`sqlite:///rnabridge.db`).
   - **PostgreSQL Example**: `export DATABASE_URL="postgresql://user:password@localhost:5432/rnabridge"`

@@ -10,7 +10,7 @@ authors:
   - family-names: "Antczak"
     given-names: "Maciej"
     orcid: "https://orcid.org/0000-0002-5320-2023"
-title: "RNABridge"
+title: "RNAbridge"
 version: 1.0.0
 date-released: 2026-05-28
 url: "https://github.com/onidd/RNABridge"
