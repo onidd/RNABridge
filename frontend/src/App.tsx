@@ -39,7 +39,8 @@ import {
   HomeOutlined,
   QuestionCircleOutlined,
   InfoCircleOutlined,
-  BookOutlined
+  BookOutlined,
+  DesktopOutlined
 } from '@ant-design/icons';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -448,8 +449,59 @@ const App: React.FC = () => {
     }
   }, [stemOptions, form]);
 
-  const [modal3dVisible, setModal3dVisible] = useState<boolean>(false);
-  const [currentCif, setCurrentCif] = useState<string | null>(null);
+  const [combinedModalVisible, setCombinedModalVisible] = useState<boolean>(false);
+  const [currentRecord, setCurrentRecord] = useState<Result | null>(null);
+  const [highlightData, setHighlightData] = useState<any>(null);
+
+  const openCombinedModal = (record: Result) => {
+    setCurrentRecord(record);
+    
+    // Logic for highlights
+    const components = record.details?.components;
+    if (components && Array.isArray(components)) {
+      const stackingIds: string[] = [];
+      if (record.type === 'junction' && Array.isArray(record.details?.coaxial_pairs)) {
+        record.details.coaxial_pairs.flat().forEach((s: any) => {
+          stackingIds.push(s.toString().toLowerCase());
+        });
+      }
+
+      const highlightsList = components.flatMap((c: any) => {
+        const residues = c.residues || [];
+        const cid = c.id?.toLowerCase() || '';
+        const isStacking = stackingIds.includes(cid);
+        
+        let finalColor = { r: 180, g: 180, b: 180 };
+        let label = c.id || 'Segment';
+        let priority = 0;
+
+        if (c.color) {
+          finalColor = c.color;
+          priority = 2; 
+        } else if (isStacking) {
+          finalColor = { r: 0, g: 0, b: 0 };
+          label = `Coaxial Stem: ${c.id}`;
+          priority = 1;
+        }
+
+        return residues.map((r: any) => ({
+          start: r.start,
+          end: r.end,
+          chain: r.chain || c.chain || 'A',
+          start_icode: r.start_icode,
+          end_icode: r.end_icode,
+          color: finalColor,
+          label: label,
+          priority: priority
+        }));
+      });
+      setHighlightData(highlightsList.sort((a: any, b: any) => a.priority - b.priority));
+    } else {
+      setHighlightData(null);
+    }
+    
+    setCombinedModalVisible(true);
+  };
 
   const [jsonPreviewVisible, setJsonPreviewVisible] = useState<boolean>(false);
   const [currentJsonContent, setCurrentJsonContent] = useState<string>('');
@@ -750,62 +802,6 @@ const App: React.FC = () => {
     setSvgPreviewVisible(true);
   };
 
-  const [highlightData, setHighlightData] = useState<any>(null);
-
-  const open3dModal = (record: Result) => {
-    setCurrentCif(`${API_BASE}/api/files/${record.path_cif}`);
-
-    let highlights = null;
-    
-    // 1. Get components to color (standardized in API)
-    const components = record.details?.components;
-
-    if (components && Array.isArray(components)) {
-      // 2. Identify stacking IDs (those that should be BLACK)
-      const stackingIds: string[] = [];
-      if (record.type === 'junction' && Array.isArray(record.details?.coaxial_pairs)) {
-        record.details.coaxial_pairs.flat().forEach((s: any) => {
-          stackingIds.push(s.toString().toLowerCase());
-        });
-      }
-
-      // 3. Color components
-      const highlightsList = components.flatMap((c: any) => {
-        const residues = c.residues || [];
-        const cid = c.id?.toLowerCase() || '';
-        const isStacking = stackingIds.includes(cid);
-        
-        // DEFAULT: Gray
-        let finalColor = { r: 180, g: 180, b: 180 };
-        let label = c.id || 'Segment';
-        let priority = 0; // 0: Gray, 1: Black Stacking, 2: Motif Color
-
-        if (c.color) {
-          finalColor = c.color;
-          priority = 2; // Motifs are now highest priority
-        } else if (isStacking) {
-          finalColor = { r: 0, g: 0, b: 0 };
-          label = `Coaxial Stem: ${c.id}`;
-          priority = 1; // Black Stacking is middle priority
-        }
-
-        return residues.map((r: any) => ({
-          chain: r.chain || c.chain || 'A',
-          start: r.start,
-          end: r.end,
-          color: finalColor,
-          label: label,
-          priority: priority
-        }));
-      });
-
-      // Sort highlights by priority so Black (2) is applied LAST and wins over Gray (0) or Motif (1)
-      highlights = highlightsList.sort((a, b) => a.priority - b.priority);
-    }
-
-    setHighlightData(highlights);
-    setModal3dVisible(true);
-  };
   const openJsonPreview = async (jsonPath: string) => {
     try {
       const response = await axios.get(`${API_BASE}/api/files/${jsonPath}`);
@@ -888,30 +884,15 @@ const App: React.FC = () => {
     {
       title: 'Visualization',
       key: 'viz',
-      width: 150,
+      width: 120,
       render: (_: any, record: Result) => (
-        <Space direction="vertical" style={{ width: '100%' }}>
-          {record.path_svg ? (
-            <Button 
-              size="small"
-              type="primary" 
-              ghost 
-              icon={<EyeOutlined />} 
-              onClick={(e) => { e.stopPropagation(); openSvgPreview(record.path_svg!); }}
-              style={{ width: '100%' }}
-            >
-              2D Preview
-            </Button>
-          ) : <Button size="small" disabled style={{ width: '100%' }}>No 2D</Button>}
-          <Button
-            size="small"
-            type="primary"
-            icon={<DeploymentUnitOutlined />}
-            onClick={(e) => { e.stopPropagation(); open3dModal(record); }}
-            style={{ width: '100%' }}
-          >
-            3D Model
-          </Button>        </Space>
+        <Button
+          type="primary"
+          onClick={(e) => { e.stopPropagation(); openCombinedModal(record); }}
+          style={{ width: '100%', height: '36px', fontWeight: 'bold' }}
+        >
+          Preview
+        </Button>
       ),
     },
     {
@@ -1552,35 +1533,116 @@ const App: React.FC = () => {
         <strong>RNABridge</strong> ©2026 | System for local RNA geometry analysis
       </Footer>
 
-      {currentSvg && (
-        <Image
-          style={{ display: 'none' }}
-          preview={{
-            visible: svgPreviewVisible,
-            src: currentSvg,
-            onVisibleChange: (value) => setSvgPreviewVisible(value),
-          }}
-        />
-      )}
+      <style>{`
+        .preview-modal-container {
+          display: flex;
+          flex-direction: row;
+          gap: 15px;
+          min-height: 730px;
+        }
+        .preview-view-3d, .preview-view-2d {
+          flex: 1;
+          background: #ffffff;
+          border-radius: 8px;
+          border: 1px solid #f0f0f0;
+          padding: 15px;
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 992px) {
+          .preview-modal-container {
+            display: none;
+          }
+          .preview-modal-tabs {
+            display: block;
+          }
+        }
+        @media (min-width: 993px) {
+          .preview-modal-tabs {
+            display: none;
+          }
+        }
+      `}</style>
 
       <Modal
-        title={<span><DeploymentUnitOutlined /> 3D Structure Preview</span>}
-        open={modal3dVisible}
-        onCancel={() => setModal3dVisible(false)}
+        title={
+          <Space>
+            <DesktopOutlined />
+            <Text strong>Structure Preview: {currentRecord?.pdb_id}</Text>
+            <Tag color="blue">{currentRecord?.segment_count_folder}</Tag>
+          </Space>
+        }
+        open={combinedModalVisible}
+        onCancel={() => setCombinedModalVisible(false)}
         footer={[
-          <Button key="close" type="primary" onClick={() => setModal3dVisible(false)}>Close</Button>
+          <Button key="close" type="primary" onClick={() => setCombinedModalVisible(false)}>Close</Button>
         ]}
-        width={900}
-        centered
-        destroyOnHidden 
+        width="90%"
+        style={{ top: 20, maxWidth: '1500px' }}
+        centered={false}
+        destroyOnClose
       >
-        <div style={{ padding: '0 10px' }}>
-          <Suspense fallback={<div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large">Loading 3D model...</Spin></div>}>
-            {currentCif && (
-              <MolstarViewer url={currentCif} highlights={highlightData} />
-            )}
-          </Suspense>
-        </div>
+        {currentRecord && (
+          <>
+            {/* LARGE SCREENS: Side-by-Side */}
+            <div className="preview-modal-container">
+              <div className="preview-view-2d">
+                <Title level={5} style={{ textAlign: 'center', marginBottom: '15px' }}><EyeOutlined /> 2D Schematic</Title>
+                <div style={{ height: '680px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {currentRecord.path_svg ? (
+                    <Image 
+                      src={`${API_BASE}/api/files/${currentRecord.path_svg}`} 
+                      style={{ width: '100%', height: '680px', objectFit: 'contain' }} 
+                      preview={false}
+                    />
+                  ) : <div style={{ color: '#888' }}>No 2D visualization available</div>}
+                </div>
+              </div>
+              <div className="preview-view-3d">
+                <Title level={5} style={{ textAlign: 'center', marginBottom: '15px' }}><DeploymentUnitOutlined /> 3D Model</Title>
+                <Suspense fallback={<div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large">Loading 3D model...</Spin></div>}>
+                  <MolstarViewer url={`${API_BASE}/api/files/${currentRecord.path_cif}`} highlights={highlightData} height="680px" />
+                </Suspense>
+              </div>
+            </div>
+
+            {/* LEGEND SECTION */}
+            <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee' }}>
+              <Row gutter={[24, 16]}>
+                <Col xs={24} md={8}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Line Notations</Text>
+                  <Space direction="vertical" size={4}>
+                    <Space><div style={{ width: '20px', height: '2px', background: '#1890ff' }}></div> <Text size="small">Non-canonical base pairs</Text></Space>
+                    <Space><div style={{ width: '20px', height: '2px', background: '#ff0000' }}></div> <Text size="small">Stacking paths</Text></Space>
+                  </Space>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Stem Highlights</Text>
+                  <Space direction="vertical" size={4}>
+                    <Space><div style={{ width: '12px', height: '12px', background: '#000000', borderRadius: '2px' }}></div> <Text size="small">Coaxial Stacking</Text></Space>
+                    <Space><div style={{ width: '12px', height: '12px', background: '#d3d3d3', borderRadius: '2px' }}></div> <Text size="small">Generic / Other Stems</Text></Space>
+                  </Space>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Unpaired segments & loop motifs</Text>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {(currentRecord.type === 'helix' ? 
+                      ["#8DD3C7", "#BEBADA", "#B3DE69", "#BC80BD", "#CCEBC5", "#FFED6F", "#9EBCDA", "#FCCDE5"] : 
+                      ["#FDB462", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3", "#66C2A5"]
+                    ).map(c => (
+                      <Tooltip key={c} title={c}>
+                        <div style={{ width: '16px', height: '16px', background: c, borderRadius: '2px' }}></div>
+                      </Tooltip>
+                    ))}
+                    <Text type="secondary" style={{ fontSize: '12px', marginLeft: '4px' }}>
+                      ({currentRecord.type === 'helix' ? 'Helix' : 'Junction Core'} Palette)
+                    </Text>
+                  </div>
+                </Col>
+              </Row>
+            </div>
+          </>
+        )}
       </Modal>
 
       <Modal
