@@ -28,3 +28,6 @@ cif/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Presentation & Documentation
+Poster/

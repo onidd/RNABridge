@@ -1198,8 +1198,7 @@ const App: React.FC = () => {
     <Layout style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
       <Header style={{ background: '#001529', padding: '0 20px', display: 'flex', alignItems: 'center' }}>
         <Space style={{ marginRight: '40px' }}>
-          <DeploymentUnitOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-          <Title level={3} style={{ color: 'white', margin: 0, fontSize: 'clamp(16px, 4vw, 24px)' }}>RNABridge</Title>
+          <img src="/rnabridge.svg" alt="RNABridge Logo" style={{ height: '50px', verticalAlign: 'middle' }} />
         </Space>
         <Menu 
           theme="dark" 

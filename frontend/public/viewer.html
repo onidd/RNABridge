@@ -55,7 +55,9 @@
             const selections = highlightData.map(h => ({
                 auth_asym_id: h.chain || 'A',
                 start_residue_number: parseInt(h.start),
+                start_insertion_code: h.start_icode && h.start_icode !== '.' ? h.start_icode : undefined,
                 end_residue_number: parseInt(h.end),
+                end_insertion_code: h.end_icode && h.end_icode !== '.' ? h.end_icode : undefined,
                 color: h.color || { r: 180, g: 180, b: 180 },
                 focus: false
             })).filter(s => !isNaN(s.start_residue_number) && !isNaN(s.end_residue_number));

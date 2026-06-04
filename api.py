@@ -202,6 +202,7 @@ async def export_csv(
         actual = segment_type or motif_type or []
         h_q, j_q = session.query(Helix), session.query(Junction)
         
+        # Consistent filtering logic
         if actual:
             h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
             j_f = []
@@ -223,9 +224,9 @@ async def export_csv(
             if stacking_stem1: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
             if stacking_stem2: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
 
+        # Fetch results
         s_col = sort_by or 'pdb_id'
         a_h, a_j = getattr(Helix, s_col, Helix.pdb_id), getattr(Junction, s_col, Junction.pdb_id)
-        # Fetching organism instead of molecule for the CSV
         h_res = h_q.with_entities(Helix.pdb_id, Helix.organism, Helix.method, Helix.resolution, Helix.segment_count_folder, Helix.total_nt, Helix.global_bend_angle, a_h).all()
         j_res = j_q.with_entities(Junction.pdb_id, Junction.organism, Junction.method, Junction.resolution, Junction.segment_count_folder, Junction.total_nt, Junction.global_bend_angle, a_j).all()
         
@@ -233,17 +234,21 @@ async def export_csv(
         for r in h_res: combined.append([r[0], r[1], r[2], r[3], 'HELIX', r[4], r[5], r[6], r[7]])
         for r in j_res: combined.append([r[0], r[1], r[2], r[3], 'JUNCTION', r[4], r[5], r[6], r[7]])
         
-        # Sort by the dynamic column (index 8)
-        combined.sort(key=lambda x: (x[8] if x[8] is not None else ""), reverse=(sort_order == "desc"))
+        # Sort combined results
+        def sort_key(x):
+            val = x[8]
+            if val is None: return "" if isinstance(val, str) else -1.0
+            return val
+        
+        combined.sort(key=sort_key, reverse=(sort_order == "desc"))
         
         output = io.StringIO()
         writer = csv.writer(output)
-        # Using "Source" as the header for the organism field
         writer.writerow(['CIF ID', 'Source', 'Type', 'Segment Count', 'NTs', 'Bend Angle (deg)', 'Res. (A)', 'Method'])
         for r in combined:
             writer.writerow([
                 r[0],                              # CIF ID
-                r[1] or "Unknown",                 # Source (Organism)
+                r[1] or "Unknown",                 # Source
                 r[4],                              # Type
                 r[5],                              # Segment Count
                 r[6],                              # NTs
