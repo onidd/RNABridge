@@ -608,33 +608,21 @@ class GeometryCalculator:
             return 999.0
 
     @staticmethod
-    def validate_junction_compactness(cif_path: str, loop_strands: List[Dict], max_dist: float = 20.0) -> bool:
+    def validate_junction_compactness(loop_strands: List[Dict]) -> bool:
         """
-        Verifies junction compactness and sequence continuity.
-        A junction is valid ONLY if:
-        1. All 3D distances between strand ends are below max_dist.
-        2. Residue numbering within EACH strand is continuous, 
-           allowing for a maximum of 1 missing residue per strand.
+        Verifies sequence continuity within loop strands.
+        A motif is valid ONLY if residue numbering within EACH strand is perfectly continuous.
+        Uses serial indices to handle insertion codes (ICODE) correctly.
         """
-        if not cif_path: return True
-        n = len(loop_strands)
-        for i in range(n):
-            s_curr, s_next = loop_strands[i], loop_strands[(i + 1) % n]
-            
-            # 1. Check numbering continuity WITHIN the current strand
-            f_num = Utils.to_int(s_curr.get("first", {}).get("number"))
-            l_num = Utils.to_int(s_curr.get("last", {}).get("number"))
-            actual_len = len(s_curr.get("sequence", ""))
-            if f_num is not None and l_num is not None:
-                expected_len = abs(l_num - f_num) + 1
-                # If more than 1 residue is missing in the numbering gap
-                if expected_len - actual_len > 1:
+        for s in loop_strands:
+            # Check numbering continuity using serial indices
+            f_ser = Utils.to_int(s.get("first", {}))
+            l_ser = Utils.to_int(s.get("last", {}))
+            actual_len = len(s.get("sequence", ""))
+            if f_ser is not None and l_ser is not None:
+                expected_len = abs(l_ser - f_ser) + 1
+                if expected_len != actual_len:
                     return False
-
-            # 2. Check 3D Distance between current and next strand
-            dist = GeometryCalculator.get_distance(cif_path, s_curr.get("last"), s_next.get("first"))
-            if dist is None or dist > max_dist:
-                return False
         return True
 
     @staticmethod
@@ -642,14 +630,17 @@ class GeometryCalculator:
         """Calculates all pair-wise bend angles between stems connected to a junction."""
         if not cif_path: return {}
         angles, axes = {}, []
-        keys = sorted(stems_data.keys(), key=lambda x: int(x.split('_')[-1]))
+        # Sort keys based on numeric part (stem1, stem2, ...)
+        keys = sorted(stems_data.keys(), key=lambda x: int(''.join(filter(str.isdigit, x))))
         for k in keys:
             axes.append(GeometryCalculator.get_stem_axis_cached(cif_path, stems_data[k], label=f"tmp_{k}"))
         
         for i, j in itertools.combinations(range(len(keys)), 2):
             v1, v2 = axes[i], axes[j]
-            # Use format stem_1_2 instead of stem_1_stem_2
-            angles[f"stem_{keys[i].split('_')[-1]}_{keys[j].split('_')[-1]}"] = GeometryCalculator.calculate_bend_angle(v1, v2)
+            # Use format stem_1_stem_2
+            s1_id = ''.join(filter(str.isdigit, keys[i]))
+            s2_id = ''.join(filter(str.isdigit, keys[j]))
+            angles[f"stem_{s1_id}_stem_{s2_id}"] = GeometryCalculator.calculate_bend_angle(v1, v2)
         return angles
 
 class Visualizer:
@@ -669,7 +660,14 @@ class Visualizer:
         comp3d = []
         def add_res(strand):
             if not strand or not strand.get('first'): return []
-            return [{'start': strand['first']['number'], 'end': strand['last']['number'], 'chain': strand['first'].get('chain', 'A')}]
+            f, l = strand['first'], strand['last']
+            return [{
+                'start': f['number'], 
+                'end': l['number'], 
+                'chain': f.get('chain', 'A'),
+                'start_icode': f.get('icode'),
+                'end_icode': l.get('icode')
+            }]
 
         def process_stems(target):
             if not is_junction:
@@ -722,12 +720,24 @@ class Visualizer:
         seq = s.get("sequence", "")
         c1, f1 = f_obj.get("chain"), f_obj.get("number")
         c2, f2 = l_obj.get("chain"), l_obj.get("number")
-        if c1 is None or f1 is None or c2 is None or f2 is None: return None
-        try:
-            is_continuous = (c1 == c2) and (abs(int(f1) - int(f2)) + 1 == len(seq))
-        except: is_continuous = False
-        if is_continuous: return f"(chain {c1} and resi {min(int(f1), int(f2))}-{max(int(f1), int(f2))})"
-        else: return f"(chain {c1} and resi {f1}) or (chain {c2} and resi {f2})"
+        f_ser, l_ser = f_obj.get("serial"), l_obj.get("serial")
+        
+        if c1 is None or f_ser is None or c2 is None or l_ser is None: return None
+        
+        # Check continuity using serial indices
+        is_continuous = (c1 == c2) and (abs(f_ser - l_ser) + 1 == len(seq))
+        
+        def fmt_res(obj):
+            num = obj.get("number")
+            icode = obj.get("icode") or ""
+            if icode in [None, ".", "?", " "]: icode = ""
+            return f"{num}{icode}"
+
+        if is_continuous:
+            # resi 1406-1406C works in PyMOL if they are on the same chain
+            return f"(chain {c1} and resi {fmt_res(f_obj)}-{fmt_res(l_obj)})"
+        else:
+            return f"(chain {c1} and resi {fmt_res(f_obj)}) or (chain {c2} and resi {fmt_res(l_obj)})"
 
     @staticmethod
     def get_continuous_selection(data: Dict, is_junction: bool = False) -> str:
@@ -848,7 +858,7 @@ class Visualizer:
             s1, s2, lw = Utils.to_int(inter.get("nt1")), Utils.to_int(inter.get("nt2")), inter.get("lw", "").strip()
             id1, id2 = ser_to_v_id.get(s1), ser_to_v_id.get(s2)
             if id1 and id2 and len(lw) >= 3:
-                base_pairs.append({"id1": id1, "id2": id2, "stericity": lw_s.get(lw[0].lower(), 'CIS'), "edge5": lw_e.get(lw[1].lower(), 'WC'), "edge3": lw_e.get(lw[2].lower(), 'WC'), "canonical": False, "thickness": 2.0})
+                base_pairs.append({"id1": id1, "id2": id2, "stericity": lw_s.get(lw[0].lower(), 'CIS'), "edge5": lw_e.get(lw[1].lower(), 'WC'), "edge3": lw_e.get(lw[2].lower(), 'WC'), "canonical": False})
 
         # --- DRAW STACKING PATHS (JUMPS) ---
         v_stackings = []
@@ -868,8 +878,7 @@ class Visualizer:
                         v_stackings.append({
                             "id1": vid1, 
                             "id2": vid2, 
-                            "color": "255,0,0", 
-                            "thickness": 2.5
+                            "color": "255,0,0"
                         })
 
         if is_junction:

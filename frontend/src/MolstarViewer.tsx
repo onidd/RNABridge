@@ -3,9 +3,10 @@ import React, { useRef, useEffect } from 'react';
 interface MolstarViewerProps {
   url: string;
   highlights?: any;
+  height?: string;
 }
 
-const MolstarViewer: React.FC<MolstarViewerProps> = ({ url, highlights }) => {
+const MolstarViewer: React.FC<MolstarViewerProps> = ({ url, highlights, height = '450px' }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Podstawowy URL - nie przekazujemy już highlights w URL, aby uniknąć błędu 414
@@ -30,7 +31,7 @@ const MolstarViewer: React.FC<MolstarViewerProps> = ({ url, highlights }) => {
   }, [highlights]);
 
   return (
-    <div style={{ width: '100%', height: '450px', background: '#fff', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd' }}>
+    <div style={{ width: '100%', height: height, background: '#fff', borderRadius: '4px', overflow: 'hidden' }}>
       <iframe
         ref={iframeRef}
         src={viewerUrl}

@@ -18,7 +18,6 @@ for d in [CIF_DIR, JSON_DIR, RESULTS_DIR, OUTPUT_DIR]:
 
 # Analysis Parameters
 MAX_BEND_ANGLE = float(os.environ.get("RNABRIDGE_MAX_ANGLE", 50.0))
-JUNCTION_MAX_DIST = float(os.environ.get("RNABRIDGE_MAX_DIST", 20.0))
 
 # Database Configuration
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///rnabridge.db")

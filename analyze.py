@@ -3,7 +3,7 @@ import sys
 import os
 import rnabridge
 from rnabridge import HelicesBuilder, GeometryCalculator, Utils
-from config import MAX_BEND_ANGLE, JUNCTION_MAX_DIST
+from config import MAX_BEND_ANGLE
 
 def get_motif_sort_key(m):
     """
@@ -79,9 +79,12 @@ def main():
             if not (stem1 and stem2): continue
 
             interactions = rnabridge.Core.find_interactions(m_data["strands"], pairs_idx)
+            
+            # Apply continuity validation to all loops (Junctions, Bulges, Internal Loops)
+            if not GeometryCalculator.validate_junction_compactness(m_data["strands"]): continue
+
             if "WAY_JUNCTION" in m_type:
                 if len(set(s.get("first", {}).get("chain") for s in m_data["strands"])) > 1: continue
-                if not GeometryCalculator.validate_junction_compactness(cif_path, m_data["strands"], max_dist=JUNCTION_MAX_DIST): continue
 
                 stems_data = {}
                 for i in range(len(m_data["strands"])):
@@ -92,12 +95,41 @@ def main():
                     stems_data[f"stem_{i+1}"] = {"strand5p": st.get("strand5p", {}), "strand3p": st.get("strand3p", {})} if st else {}
 
                 bend_angles = GeometryCalculator.get_junction_bend_angles(cif_path, stems_data)
+                stacking_data = rnabridge.Stacking.check_junction_stacking({"location": {"strands": m_data["strands"]}}, stacking_idx)
+                
+                # Filter and select best coaxial pairs (Greedy selection: smallest angle first)
+                potential_pairs = []
+                for p in stacking_data.get("coaxial_pairs", []):
+                    # p is e.g. ["stem_1", "stem_2"], bend_angles keys are "stem_1_stem_2"
+                    angle_key = f"{p[0]}_{p[1]}"
+                    angle = bend_angles.get(angle_key)
+                    if angle is not None and angle <= max_angle_limit:
+                        potential_pairs.append({"pair": p, "angle": angle})
+                
+                potential_pairs.sort(key=lambda x: x["angle"])
+                
+                valid_coaxial_pairs = []
+                used_stems = set()
+                for pp in potential_pairs:
+                    s1, s2 = pp["pair"]
+                    if s1 not in used_stems and s2 not in used_stems:
+                        valid_coaxial_pairs.append(pp["pair"])
+                        used_stems.add(s1)
+                        used_stems.add(s2)
+                
+                stacking_data["coaxial_pairs"] = valid_coaxial_pairs
+                stacking_data["status"] = "FULL" if valid_coaxial_pairs else "NO"
+
+                # Drop the junction entirely if it doesn't have at least one valid coaxial pair
+                if not valid_coaxial_pairs:
+                    continue
+
                 motif_result = { 
                     "meta": { "id": len(sls_motifs) + 1, "type": m_type }, 
                     "location": { "strands": m_data["strands"], "context": stems_data }, 
                     "modules": { 
                         "interactions": { "category": rnabridge.Analysis.categorize_junction_interaction(m_data, interactions), "count": len(interactions), "details": interactions }, 
-                        "stacking": rnabridge.Stacking.check_junction_stacking({"location": {"strands": m_data["strands"]}}, stacking_idx), "geometry": {"bend_angles": bend_angles}
+                        "stacking": stacking_data, "geometry": {"bend_angles": bend_angles}
                     } 
                 }
                 Utils.enrich_motif_data(motif_result, data)
@@ -125,6 +157,10 @@ def main():
         elif raw_m["type"] == "HAIRPIN":
             m_data["strands"] = [m_data["strand"]]
             Utils.enrich_motif_data(m_data, data)
+            
+            # Apply continuity validation to hairpins
+            if not GeometryCalculator.validate_junction_compactness(m_data["strands"]): continue
+
             f, l = Utils.to_int(m_data["strand"]["first"]), Utils.to_int(m_data["strand"]["last"])
             if f is None or l is None: continue
             stem1 = stems_end_map.get(f) or stems_start_map.get(l)
@@ -208,9 +244,13 @@ def main():
     # 4. Junctions and Extensions
     junctions_output = []
     for m in [mot for mot in sls_motifs if "WAY_JUNCTION" in mot["meta"]["type"]]:
-        cp, ba = m["modules"]["stacking"].get("coaxial_pairs", []), m["modules"]["geometry"].get("bend_angles", {})
-        if any(ba.get(f"stem_{p[0].split('_')[-1]}_{p[1].split('_')[-1]}") is not None and ba[f"stem_{p[0].split('_')[-1]}_{p[1].split('_')[-1]}"] <= max_angle_limit for p in cp):
-            junctions_output.append({"j_id": len(junctions_output) + 1, "total_nt": Utils.get_helix_unique_nt([m]), "location": m["location"]["strands"], "context": m["location"]["context"], "modules": m["modules"]})
+        junctions_output.append({
+            "j_id": len(junctions_output) + 1, 
+            "total_nt": Utils.get_helix_unique_nt([m]), 
+            "location": m["location"]["strands"], 
+            "context": m["location"]["context"], 
+            "modules": m["modules"]
+        })
 
     for junc in junctions_output:
         junc["extended_helices"] = [h for h in formatted_helices if any(stems_match_strict(js, h["strands"]["upstream"]) or stems_match_strict(js, h["strands"]["downstream"]) for k, js in junc["context"].items() if "stem" in k)]
