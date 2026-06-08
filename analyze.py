@@ -81,7 +81,7 @@ def main():
             interactions = rnabridge.Core.find_interactions(m_data["strands"], pairs_idx)
             
             # Apply continuity validation to all loops (Junctions, Bulges, Internal Loops)
-            if not GeometryCalculator.validate_junction_compactness(m_data["strands"]): continue
+            if not GeometryCalculator.validate_junction_compactness(m_data["strands"], data.get("bpseq_index")): continue
 
             if "WAY_JUNCTION" in m_type:
                 if len(set(s.get("first", {}).get("chain") for s in m_data["strands"])) > 1: continue
@@ -159,7 +159,7 @@ def main():
             Utils.enrich_motif_data(m_data, data)
             
             # Apply continuity validation to hairpins
-            if not GeometryCalculator.validate_junction_compactness(m_data["strands"]): continue
+            if not GeometryCalculator.validate_junction_compactness(m_data["strands"], data.get("bpseq_index")): continue
 
             f, l = Utils.to_int(m_data["strand"]["first"]), Utils.to_int(m_data["strand"]["last"])
             if f is None or l is None: continue

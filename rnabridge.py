@@ -608,21 +608,29 @@ class GeometryCalculator:
             return 999.0
 
     @staticmethod
-    def validate_junction_compactness(loop_strands: List[Dict]) -> bool:
-        """
-        Verifies sequence continuity within loop strands.
-        A motif is valid ONLY if residue numbering within EACH strand is perfectly continuous.
-        Uses serial indices to handle insertion codes (ICODE) correctly.
-        """
+    def validate_junction_compactness(loop_strands: List[Dict], mapping: Dict) -> bool:
+        if not mapping: return True
         for s in loop_strands:
-            # Check numbering continuity using serial indices
-            f_ser = Utils.to_int(s.get("first", {}))
-            l_ser = Utils.to_int(s.get("last", {}))
-            actual_len = len(s.get("sequence", ""))
-            if f_ser is not None and l_ser is not None:
-                expected_len = abs(l_ser - f_ser) + 1
-                if expected_len != actual_len:
-                    return False
+            f_ser, l_ser = Utils.to_int(s.get("first")), Utils.to_int(s.get("last"))
+            if f_ser is None or l_ser is None: continue
+            step = 1 if f_ser <= l_ser else -1
+            seq_len = len(s.get("sequence", ""))
+            if seq_len <= 1: continue
+            for i in range(seq_len - 1):
+                curr = mapping.get(str(f_ser + i*step))
+                nxt = mapping.get(str(f_ser + (i+1)*step))
+                if not curr or not nxt: return False
+                ac, an = curr["auth"], nxt["auth"]
+                if ac["chain"] != an["chain"]: return False
+                if an["number"] == ac["number"]:
+                    ic, in_c = ac.get("icode") or "", an.get("icode") or ""
+                    if ic == " ": ic = ""
+                    if in_c == " ": in_c = ""
+                    if in_c <= ic: return False
+                elif an["number"] == ac["number"] + 1:
+                    in_c = an.get("icode") or ""
+                    if in_c and str(in_c).strip() not in ["", ".", "?", " "]: return False
+                else: return False
         return True
 
     @staticmethod
