@@ -913,6 +913,8 @@ class Visualizer:
         with open(out_path, "w", encoding="UTF-8") as f:
             json.dump({
                 "drawingAlgorithm": "NAVIEW", 
+                "stackingArrowPlacement": "second-partner",
+                "stackingArrowGap": 8.0,
                 "nucleotides": nucleotides, 
                 "basePairs": base_pairs, 
                 "stackings": v_stackings
