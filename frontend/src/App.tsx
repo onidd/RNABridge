@@ -79,7 +79,7 @@ const HelpPage: React.FC = () => (
         <div id="intro" style={{ marginBottom: 60 }}>
           <Title level={2} style={{ textAlign: 'center' }}>RNAbridge User Guide</Title>
           <Paragraph style={{ fontSize: '16px', textAlign: 'center', color: '#666' }}>
-            RNAbridge is an advanced platform for identifying and analyzing RNA structural motifs. 
+            RNAbridge is an advanced platform for identifying and analyzing RNA extended, non-canonical helices. 
             This guide will help you fully utilize the tool's capabilities.
           </Paragraph>
         </div>
@@ -1548,9 +1548,12 @@ const App: React.FC = () => {
             display: none;
           }
         }
-      `}</style>
+        `}</style>
 
-      <Modal
+
+
+
+        <Modal
         title={
           <Space>
             <DesktopOutlined />
@@ -1567,7 +1570,9 @@ const App: React.FC = () => {
         style={{ top: 20, maxWidth: '1500px' }}
         centered={false}
         destroyOnClose
-      >
+        >
+
+
         {currentRecord && (
           <>
             {/* LARGE SCREENS: Side-by-Side */}
