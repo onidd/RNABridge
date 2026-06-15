@@ -17,7 +17,6 @@ from pathlib import Path
 
 class PDBDownloader:
     """Handles synchronization and downloading of RNA structures from RCSB PDB."""
-
     @staticmethod
     def get_active_rna_ids() -> Set[str]:
         """Fetches the list of all active RNA entry IDs from RCSB PDB."""
@@ -588,48 +587,44 @@ class GeometryCalculator:
         return round(math.degrees(math.acos(abs(dot))), 2)
 
     @staticmethod
-    def get_distance(pdb_path: str, res1: Dict, res2: Dict) -> Optional[float]:
-        """Calculates the C1'-C1' distance between two residues using PyMOL."""
-        if not res1 or not res2: return None
-        GeometryCalculator.load_structure(pdb_path)
-        
-        c1, n1 = res1.get('chain'), res1.get('number')
-        c2, n2 = res2.get('chain'), res2.get('number')
-        
-        s1 = f"(full_struct and chain {c1} and resi {n1} and (name C1' or name C1*))"
-        s2 = f"(full_struct and chain {c2} and resi {n2} and (name C1' or name C1*))"
-        
-        try:
-            d = cmd.get_distance(s1, s2)
-            return round(d, 2)
-        except:
-            # If distance fails in Docker, we return a huge number to skip the junction
-            # instead of None which might be misinterpreted.
-            return 999.0
-
-    @staticmethod
     def validate_junction_compactness(loop_strands: List[Dict], mapping: Dict) -> bool:
         if not mapping: return True
         for s in loop_strands:
             f_ser, l_ser = Utils.to_int(s.get("first")), Utils.to_int(s.get("last"))
             if f_ser is None or l_ser is None: continue
+            
             step = 1 if f_ser <= l_ser else -1
-            seq_len = len(s.get("sequence", ""))
-            if seq_len <= 1: continue
-            for i in range(seq_len - 1):
+            expected_len = abs(l_ser - f_ser) + 1
+            if expected_len <= 1: continue
+            
+            # Detect numbering direction (ascending or descending)
+            try:
+                n_start = Utils.to_int(mapping.get(str(f_ser), {}).get("auth", {}).get("number"))
+                n_end = Utils.to_int(mapping.get(str(l_ser), {}).get("auth", {}).get("number"))
+                auth_step = 1 if (n_end is not None and n_start is not None and n_end >= n_start) else -1
+            except: auth_step = 1
+
+            for i in range(expected_len - 1):
                 curr = mapping.get(str(f_ser + i*step))
                 nxt = mapping.get(str(f_ser + (i+1)*step))
                 if not curr or not nxt: return False
+                
                 ac, an = curr["auth"], nxt["auth"]
                 if ac["chain"] != an["chain"]: return False
-                if an["number"] == ac["number"]:
+                
+                n_curr, n_next = Utils.to_int(ac["number"]), Utils.to_int(an["number"])
+                if n_curr is None or n_next is None: return False
+                
+                diff = n_next - n_curr
+                if diff == 0:
                     ic, in_c = ac.get("icode") or "", an.get("icode") or ""
                     if ic == " ": ic = ""
                     if in_c == " ": in_c = ""
-                    if in_c <= ic: return False
-                elif an["number"] == ac["number"] + 1:
-                    in_c = an.get("icode") or ""
-                    if in_c and str(in_c).strip() not in ["", ".", "?", " "]: return False
+                    if auth_step == 1 and in_c <= ic: return False
+                    if auth_step == -1 and in_c >= ic: return False
+                elif diff == auth_step:
+                    if auth_step == 1 and (an.get("icode") or "").strip() not in ["", ".", "?", " "]: return False
+                    if auth_step == -1 and (ac.get("icode") or "").strip() not in ["", ".", "?", " "]: return False
                 else: return False
         return True
 

@@ -50,7 +50,10 @@ def main():
     stacking_idx = rnabridge.Stacking.build_stacking_index(data.get("stackings", []), data)
     stems_end_map, stems_start_map = {}, {}
     for s in data.get("stems", []):
-        Utils.enrich_motif_data(s, data) 
+        Utils.enrich_motif_data(s, data)
+        if not GeometryCalculator.validate_junction_compactness([s.get("strand5p", {}), s.get("strand3p", {})], data.get("bpseq_index")):
+            continue
+
         for k in ["strand5p", "strand3p"]:
             if k in s:
                 l, f = Utils.to_int(s[k]["last"]), Utils.to_int(s[k]["first"])
@@ -62,7 +65,7 @@ def main():
     all_raw.sort(key=get_motif_sort_key)
     sls_motifs = []
 
-    # 2. Motif Analysis (SLS Phase)
+    # 2. Motif Analysis 
     for raw_m in all_raw:
         m_data = raw_m["data"]
         if raw_m["type"] == "LOOP":
