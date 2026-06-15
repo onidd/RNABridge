@@ -1,7 +1,6 @@
-import requests, os
-from pathlib import Path
 from rnabridge import PDBDownloader
 from config import CIF_DIR, JSON_DIR, RESULTS_DIR, OUTPUT_DIR
+
 
 def sync_pdb_data():
     """
@@ -25,7 +24,7 @@ def sync_pdb_data():
             cif_file.unlink()
             (JSON_DIR / f"{cif_file.stem}.json").unlink(missing_ok=True)
             (RESULTS_DIR / f"{cif_file.stem}.json").unlink(missing_ok=True)
-            
+
             if OUTPUT_DIR.exists():
                 for sub in OUTPUT_DIR.iterdir():
                     if sub.is_dir():
@@ -42,8 +41,9 @@ def sync_pdb_data():
             print(f"Downloading missing structure: {pdb_id}")
             if PDBDownloader.download_cif(pdb_id, str(target)):
                 downloaded_count += 1
-    
+
     print(f"--- SYNCHRONIZATION FINISHED. Downloaded {downloaded_count} new files. ---")
+
 
 if __name__ == "__main__":
     sync_pdb_data()

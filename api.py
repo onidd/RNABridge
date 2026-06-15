@@ -3,7 +3,7 @@ import json
 import csv
 import io
 import zipfile
-from fastapi import FastAPI, Query, HTTPException, Response
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
@@ -17,247 +17,534 @@ from typing import List, Optional, Dict, Any
 app = FastAPI()
 
 # Enable CORS for frontend interaction
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Database initialization
-engine = create_engine(DATABASE_URL, pool_pre_ping=True) if DATABASE_URL.startswith("postgresql") else create_engine(DATABASE_URL)
+engine = (
+    create_engine(DATABASE_URL, pool_pre_ping=True)
+    if DATABASE_URL.startswith("postgresql")
+    else create_engine(DATABASE_URL)
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def format_helix_response(h: Helix, session) -> Dict[str, Any]:
     """Formats a Helix database object into a detailed API response with cleaned motif sequences."""
-    db_segments = session.query(Segment).filter(Segment.helix_id == h.id).order_by(Segment.s_id).all()
-    
+    db_segments = (
+        session.query(Segment)
+        .filter(Segment.helix_id == h.id)
+        .order_by(Segment.s_id)
+        .all()
+    )
+
     clean_sequences = {}
     comp3d = []
-    
+
     if h.path_json and os.path.exists(h.path_json):
         try:
-            with open(h.path_json, 'r') as f:
-                data = json.load(f).get('helices', [])
+            with open(h.path_json, "r") as f:
+                data = json.load(f).get("helices", [])
                 if data:
                     h_data = data[0]
                     comp3d = Visualizer.prepare_3d_components(h_data, is_junction=False)
-                    
+
                     # Logic to clean sequences (remove paired nucleotides from loops/bulges)
                     curr_gid = 1
                     # Skip upstream stem if exists
-                    if h_data.get('strands', {}).get('upstream', {}): curr_gid += 1
-                    
-                    for c in h_data.get('components', []):
+                    if h_data.get("strands", {}).get("upstream", {}):
+                        curr_gid += 1
+
+                    for c in h_data.get("components", []):
                         c_seq_parts = []
-                        for loc in c.get('location', []):
-                            seq, struct = loc.get('sequence', ''), loc.get('structure', '')
+                        for loc in c.get("location", []):
+                            seq, struct = (
+                                loc.get("sequence", ""),
+                                loc.get("structure", ""),
+                            )
                             if seq and struct and len(seq) == len(struct):
-                                clean_seq = "".join([seq[idx] for idx in range(len(seq)) if struct[idx] == '.'])
-                                if clean_seq: c_seq_parts.append(clean_seq)
+                                clean_seq = "".join(
+                                    [
+                                        seq[idx]
+                                        for idx in range(len(seq))
+                                        if struct[idx] == "."
+                                    ]
+                                )
+                                if clean_seq:
+                                    c_seq_parts.append(clean_seq)
                             else:
-                                if seq: c_seq_parts.append(seq)
-                        
+                                if seq:
+                                    c_seq_parts.append(seq)
+
                         clean_sequences[curr_gid] = "-".join(c_seq_parts)
                         curr_gid += 1
                         # Skip internal stem of motif if exists
-                        i_stem = c.get('internal_stem', {})
-                        if i_stem and (i_stem.get('strand5p', {}).get('sequence') or i_stem.get('strand3p', {}).get('sequence')):
+                        i_stem = c.get("internal_stem", {})
+                        if i_stem and (
+                            i_stem.get("strand5p", {}).get("sequence")
+                            or i_stem.get("strand3p", {}).get("sequence")
+                        ):
                             curr_gid += 1
-        except: pass
+        except Exception:
+            pass
 
     segments_list = []
     for s in db_segments:
-        try: path = json.loads(s.stacking_path) if s.stacking_path else []
-        except: path = []
-        
+        try:
+            path = json.loads(s.stacking_path) if s.stacking_path else []
+        except Exception:
+            path = []
+
         display_seq = s.sequence_full
-        if s.type.upper() != 'STEM' and s.s_id in clean_sequences:
+        if s.type.upper() != "STEM" and s.s_id in clean_sequences:
             display_seq = clean_sequences[s.s_id]
 
-        segments_list.append({
-            's_id': s.s_id, 'type': s.type, 'size_2d': f"{s.size_2d_left}x{s.size_2d_right}",
-            'size_3d': f"{s.size_3d_left}x{s.size_3d_right}", 'bend_angle': s.bend_angle,
-            'stacking': s.stacking, 'stacking_path': path, 'sequence': display_seq
-        })
+        segments_list.append(
+            {
+                "s_id": s.s_id,
+                "type": s.type,
+                "size_2d": f"{s.size_2d_left}x{s.size_2d_right}",
+                "size_3d": f"{s.size_3d_left}x{s.size_3d_right}",
+                "bend_angle": s.bend_angle,
+                "stacking": s.stacking,
+                "stacking_path": path,
+                "sequence": display_seq,
+            }
+        )
 
     return {
-        'id': h.id, 'pdb_id': h.pdb_id, 'molecule': h.molecule,
-        'organism': h.organism, 'resolution': h.resolution, 'method': h.method, 'total_nt': h.total_nt,
-        'global_bend_angle': h.global_bend_angle, 'segment_count_folder': h.segment_count_folder,
-        'path_json': h.path_json, 'path_svg': h.path_svg, 'path_cif': h.path_cif, 'path_pml': h.path_pml,
-        'type': 'helix', 'details': {'db_segments': segments_list, 'components': comp3d}
+        "id": h.id,
+        "pdb_id": h.pdb_id,
+        "molecule": h.molecule,
+        "organism": h.organism,
+        "resolution": h.resolution,
+        "method": h.method,
+        "total_nt": h.total_nt,
+        "global_bend_angle": h.global_bend_angle,
+        "segment_count_folder": h.segment_count_folder,
+        "path_json": h.path_json,
+        "path_svg": h.path_svg,
+        "path_cif": h.path_cif,
+        "path_pml": h.path_pml,
+        "type": "helix",
+        "details": {"db_segments": segments_list, "components": comp3d},
     }
+
 
 def format_junction_response(j: Junction) -> Dict[str, Any]:
     """Formats a Junction database object into a detailed API response."""
-    try: 
+    try:
         raw_angles = json.loads(j.bend_angles) if j.bend_angles else {}
         # Map stem_1_stem_2 to stem_1_2 for frontend compatibility
-        angles = { k.replace("_stem_", "_"): v for k, v in raw_angles.items() }
-    except: angles = {}
-    try: pairs = json.loads(j.coaxial_pairs) if j.coaxial_pairs else []
-    except: pairs = []
-    
+        angles = {k.replace("_stem_", "_"): v for k, v in raw_angles.items()}
+    except Exception:
+        angles = {}
+    try:
+        pairs = json.loads(j.coaxial_pairs) if j.coaxial_pairs else []
+    except Exception:
+        pairs = []
+
     stems_info, comp3d = {}, []
     if j.path_json and os.path.exists(j.path_json):
         try:
-            with open(j.path_json, 'r') as f:
-                data = json.load(f).get('junctions', [])
+            with open(j.path_json, "r") as f:
+                data = json.load(f).get("junctions", [])
                 if data:
-                    target = next((jd for jd in data if int(jd.get('j_id', 0)) == (j.j_id or 1)), data[0])
-                    for s_n, s_d in target.get('context', {}).items():
+                    target = next(
+                        (jd for jd in data if int(jd.get("j_id", 0)) == (j.j_id or 1)),
+                        data[0],
+                    )
+                    for s_n, s_d in target.get("context", {}).items():
                         if "stem" in s_n:
-                            stems_info[s_n.lower()] = {'strand5p': s_d.get('strand5p'), 'strand3p': s_d.get('strand3p')}
+                            stems_info[s_n.lower()] = {
+                                "strand5p": s_d.get("strand5p"),
+                                "strand3p": s_d.get("strand3p"),
+                            }
                     comp3d = Visualizer.prepare_3d_components(target, is_junction=True)
-        except: pass
+        except Exception:
+            pass
 
     return {
-        'id': j.id, 'pdb_id': j.pdb_id, 'molecule': j.molecule, 'organism': j.organism,
-        'resolution': j.resolution, 'method': j.method, 'total_nt': j.total_nt, 'global_bend_angle': j.global_bend_angle,
-        'segment_count_folder': j.segment_count_folder, 'path_json': j.path_json, 'path_svg': j.path_svg,
-        'path_cif': j.path_cif, 'path_pml': j.path_pml, 'type': 'junction',
-        'details': {'stacking_status': j.stacking_status, 'coaxial_pairs': pairs, 'all_angles': angles, 'stems': stems_info, 'components': comp3d}
+        "id": j.id,
+        "pdb_id": j.pdb_id,
+        "molecule": j.molecule,
+        "organism": j.organism,
+        "resolution": j.resolution,
+        "method": j.method,
+        "total_nt": j.total_nt,
+        "global_bend_angle": j.global_bend_angle,
+        "segment_count_folder": j.segment_count_folder,
+        "path_json": j.path_json,
+        "path_svg": j.path_svg,
+        "path_cif": j.path_cif,
+        "path_pml": j.path_pml,
+        "type": "junction",
+        "details": {
+            "stacking_status": j.stacking_status,
+            "coaxial_pairs": pairs,
+            "all_angles": angles,
+            "stems": stems_info,
+            "components": comp3d,
+        },
     }
+
 
 @app.get("/api/search")
 async def search(
-    segment_type: Optional[List[str]] = Query(None), motif_type: Optional[List[str]] = Query(None),
-    min_angle: Optional[float] = Query(None), max_angle: Optional[float] = Query(None),
-    min_nt: Optional[int] = Query(None), max_nt: Optional[int] = Query(None),
-    search_pdb: Optional[str] = Query(None), sequence: Optional[str] = Query(None),
-    stacking_stem1: Optional[str] = Query(None), stacking_stem2: Optional[str] = Query(None),
-    sort_by: Optional[str] = Query(None), sort_order: str = Query("asc"),
-    page: int = Query(1, ge=1), limit: int = Query(10, ge=1, le=100)
+    segment_type: Optional[List[str]] = Query(None),
+    motif_type: Optional[List[str]] = Query(None),
+    min_angle: Optional[float] = Query(None),
+    max_angle: Optional[float] = Query(None),
+    min_nt: Optional[int] = Query(None),
+    max_nt: Optional[int] = Query(None),
+    search_pdb: Optional[str] = Query(None),
+    sequence: Optional[str] = Query(None),
+    stacking_stem1: Optional[str] = Query(None),
+    stacking_stem2: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("asc"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
 ):
     """General search endpoint for helices and junctions."""
     with SessionLocal() as session:
         offset = (page - 1) * limit
         actual = segment_type or motif_type or []
         h_q, j_q = session.query(Helix), session.query(Junction)
-        
+
         # Filtering logic
         if actual:
-            h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
+            h_q = h_q.filter(
+                or_(*[Helix.segment_count_folder.contains(t) for t in actual])
+            )
             j_f = []
             for t in actual:
-                if t == '8plus-junctions': j_f.append(and_(~Junction.segment_count_folder.contains('3-way'), ~Junction.segment_count_folder.contains('4-way'), ~Junction.segment_count_folder.contains('5-way'), ~Junction.segment_count_folder.contains('6-way'), ~Junction.segment_count_folder.contains('7-way'), Junction.segment_count_folder.contains('way-junction')))
-                else: j_f.append(Junction.segment_count_folder.contains(t))
+                if t == "8plus-junctions":
+                    j_f.append(
+                        and_(
+                            ~Junction.segment_count_folder.contains("3-way"),
+                            ~Junction.segment_count_folder.contains("4-way"),
+                            ~Junction.segment_count_folder.contains("5-way"),
+                            ~Junction.segment_count_folder.contains("6-way"),
+                            ~Junction.segment_count_folder.contains("7-way"),
+                            Junction.segment_count_folder.contains("way-junction"),
+                        )
+                    )
+                else:
+                    j_f.append(Junction.segment_count_folder.contains(t))
             j_q = j_q.filter(or_(*j_f))
-        
-        if min_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle >= min_angle), j_q.filter(Junction.global_bend_angle >= min_angle)
-        if max_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle <= max_angle), j_q.filter(Junction.global_bend_angle <= max_angle)
-        if min_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt >= min_nt), j_q.filter(Junction.total_nt >= min_nt)
-        if max_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt <= max_nt), j_q.filter(Junction.total_nt <= max_nt)
-        if search_pdb: h_q, j_q = h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")), j_q.filter(Junction.pdb_id.like(f"%{search_pdb}"))
+
+        if min_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle >= min_angle),
+                j_q.filter(Junction.global_bend_angle >= min_angle),
+            )
+        if max_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle <= max_angle),
+                j_q.filter(Junction.global_bend_angle <= max_angle),
+            )
+        if min_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt >= min_nt),
+                j_q.filter(Junction.total_nt >= min_nt),
+            )
+        if max_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt <= max_nt),
+                j_q.filter(Junction.total_nt <= max_nt),
+            )
+        if search_pdb:
+            h_q, j_q = (
+                h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")),
+                j_q.filter(Junction.pdb_id.like(f"%{search_pdb}")),
+            )
         if sequence:
             s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
-            h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
-        
+            h_q, j_q = (
+                h_q.filter(
+                    or_(
+                        Helix.sequence_full.contains(s_up),
+                        Helix.sequence_full.contains(s_rev),
+                    )
+                ),
+                j_q.filter(
+                    or_(
+                        Junction.sequence.contains(s_up),
+                        Junction.sequence.contains(s_rev),
+                    )
+                ),
+            )
+
         if stacking_stem1 or stacking_stem2:
-            h_q = h_q.filter(Helix.id < 0) # Helisy nie mają zdefiniowanych par współosiowych
+            h_q = h_q.filter(
+                Helix.id < 0
+            )  # Helisy nie mają zdefiniowanych par współosiowych
             if stacking_stem1:
-                j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"')
+                )
             if stacking_stem2:
-                j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"')
+                )
 
         # Combined sorting and pagination
-        s_col = sort_by or 'pdb_id'
-        a_h, a_j = getattr(Helix, s_col, Helix.pdb_id), getattr(Junction, s_col, Junction.pdb_id)
+        s_col = sort_by or "pdb_id"
+        a_h, a_j = (
+            getattr(Helix, s_col, Helix.pdb_id),
+            getattr(Junction, s_col, Junction.pdb_id),
+        )
         h_ids = h_q.with_entities(Helix.id, a_h).all()
         j_ids = j_q.with_entities(Junction.id, a_j).all()
-        combined = [(i[0], i[1], 'h') for i in h_ids] + [(i[0], i[1], 'j') for i in j_ids]
-        combined.sort(key=lambda x: (x[1] if x[1] is not None else ('' if isinstance(a_h.type, String) else -1.0)), reverse=(sort_order == "desc"))
-        
+        combined = [(i[0], i[1], "h") for i in h_ids] + [
+            (i[0], i[1], "j") for i in j_ids
+        ]
+        combined.sort(
+            key=lambda x: (
+                x[1]
+                if x[1] is not None
+                else ("" if isinstance(a_h.type, String) else -1.0)
+            ),
+            reverse=(sort_order == "desc"),
+        )
+
         total_count = len(combined)
         page_items = combined[offset : offset + limit]
         final_results = []
         for item in page_items:
-            if item[2] == 'h':
+            if item[2] == "h":
                 h_obj = session.query(Helix).filter(Helix.id == item[0]).first()
-                if h_obj: final_results.append(format_helix_response(h_obj, session))
+                if h_obj:
+                    final_results.append(format_helix_response(h_obj, session))
             else:
                 j_obj = session.query(Junction).filter(Junction.id == item[0]).first()
-                if j_obj: final_results.append(format_junction_response(j_obj))
+                if j_obj:
+                    final_results.append(format_junction_response(j_obj))
 
         # Statistics for the dashboard
         pie_stats = {}
-        for f, c in h_q.with_entities(Helix.segment_count_folder, func.count(Helix.id)).group_by(Helix.segment_count_folder).all(): pie_stats[f] = pie_stats.get(f, 0) + c
-        for f, c in j_q.with_entities(Junction.segment_count_folder, func.count(Junction.id)).group_by(Junction.segment_count_folder).all(): pie_stats[f] = pie_stats.get(f, 0) + c
-        
-        angle_stats = []
-        h_ang = session.query(Helix.segment_count_folder, (func.cast(Helix.global_bend_angle / 5, Integer) * 5).label('bin'), func.count(Helix.id)).filter(Helix.id.in_(h_q.with_entities(Helix.id))).group_by(Helix.segment_count_folder, 'bin').all()
-        for f, b, c in h_ang: angle_stats.append({"folder": f, "bin": b, "count": c})
-        j_ang = session.query(Junction.segment_count_folder, (func.cast(Junction.global_bend_angle / 5, Integer) * 5).label('bin'), func.count(Junction.id)).filter(Junction.id.in_(j_q.with_entities(Junction.id))).group_by(Junction.segment_count_folder, 'bin').all()
-        for f, b, c in j_ang: angle_stats.append({"folder": f, "bin": b, "count": c})
+        for f, c in (
+            h_q.with_entities(Helix.segment_count_folder, func.count(Helix.id))
+            .group_by(Helix.segment_count_folder)
+            .all()
+        ):
+            pie_stats[f] = pie_stats.get(f, 0) + c
+        for f, c in (
+            j_q.with_entities(Junction.segment_count_folder, func.count(Junction.id))
+            .group_by(Junction.segment_count_folder)
+            .all()
+        ):
+            pie_stats[f] = pie_stats.get(f, 0) + c
 
-        return {"results": final_results, "total": total_count, "page": page, "limit": limit, "stats": {"pie": pie_stats, "angles": angle_stats}}
+        angle_stats = []
+        h_ang = (
+            session.query(
+                Helix.segment_count_folder,
+                (func.cast(Helix.global_bend_angle / 5, Integer) * 5).label("bin"),
+                func.count(Helix.id),
+            )
+            .filter(Helix.id.in_(h_q.with_entities(Helix.id)))
+            .group_by(Helix.segment_count_folder, "bin")
+            .all()
+        )
+        for f, b, c in h_ang:
+            angle_stats.append({"folder": f, "bin": b, "count": c})
+        j_ang = (
+            session.query(
+                Junction.segment_count_folder,
+                (func.cast(Junction.global_bend_angle / 5, Integer) * 5).label("bin"),
+                func.count(Junction.id),
+            )
+            .filter(Junction.id.in_(j_q.with_entities(Junction.id)))
+            .group_by(Junction.segment_count_folder, "bin")
+            .all()
+        )
+        for f, b, c in j_ang:
+            angle_stats.append({"folder": f, "bin": b, "count": c})
+
+        return {
+            "results": final_results,
+            "total": total_count,
+            "page": page,
+            "limit": limit,
+            "stats": {"pie": pie_stats, "angles": angle_stats},
+        }
+
 
 @app.get("/api/export-csv")
 async def export_csv(
-    segment_type: Optional[List[str]] = Query(None), motif_type: Optional[List[str]] = Query(None),
-    min_angle: Optional[float] = Query(None), max_angle: Optional[float] = Query(None),
-    min_nt: Optional[int] = Query(None), max_nt: Optional[int] = Query(None),
-    search_pdb: Optional[str] = Query(None), sequence: Optional[str] = Query(None),
-    stacking_stem1: Optional[str] = Query(None), stacking_stem2: Optional[str] = Query(None),
-    sort_by: Optional[str] = Query(None), sort_order: str = Query("asc")
+    segment_type: Optional[List[str]] = Query(None),
+    motif_type: Optional[List[str]] = Query(None),
+    min_angle: Optional[float] = Query(None),
+    max_angle: Optional[float] = Query(None),
+    min_nt: Optional[int] = Query(None),
+    max_nt: Optional[int] = Query(None),
+    search_pdb: Optional[str] = Query(None),
+    sequence: Optional[str] = Query(None),
+    stacking_stem1: Optional[str] = Query(None),
+    stacking_stem2: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("asc"),
 ):
     """Exports all filtered results as a CSV file."""
     with SessionLocal() as session:
         actual = segment_type or motif_type or []
         h_q, j_q = session.query(Helix), session.query(Junction)
-        
+
         # Consistent filtering logic
         if actual:
-            h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
+            h_q = h_q.filter(
+                or_(*[Helix.segment_count_folder.contains(t) for t in actual])
+            )
             j_f = []
             for t in actual:
-                if t == '8plus-junctions': j_f.append(and_(~Junction.segment_count_folder.contains('3-way'), ~Junction.segment_count_folder.contains('4-way'), ~Junction.segment_count_folder.contains('5-way'), ~Junction.segment_count_folder.contains('6-way'), ~Junction.segment_count_folder.contains('7-way'), Junction.segment_count_folder.contains('way-junction')))
-                else: j_f.append(Junction.segment_count_folder.contains(t))
+                if t == "8plus-junctions":
+                    j_f.append(
+                        and_(
+                            ~Junction.segment_count_folder.contains("3-way"),
+                            ~Junction.segment_count_folder.contains("4-way"),
+                            ~Junction.segment_count_folder.contains("5-way"),
+                            ~Junction.segment_count_folder.contains("6-way"),
+                            ~Junction.segment_count_folder.contains("7-way"),
+                            Junction.segment_count_folder.contains("way-junction"),
+                        )
+                    )
+                else:
+                    j_f.append(Junction.segment_count_folder.contains(t))
             j_q = j_q.filter(or_(*j_f))
-        
-        if min_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle >= min_angle), j_q.filter(Junction.global_bend_angle >= min_angle)
-        if max_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle <= max_angle), j_q.filter(Junction.global_bend_angle <= max_angle)
-        if min_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt >= min_nt), j_q.filter(Junction.total_nt >= min_nt)
-        if max_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt <= max_nt), j_q.filter(Junction.total_nt <= max_nt)
-        if search_pdb: h_q, j_q = h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")), j_q.filter(Junction.pdb_id.like(f"%{search_pdb}"))
+
+        if min_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle >= min_angle),
+                j_q.filter(Junction.global_bend_angle >= min_angle),
+            )
+        if max_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle <= max_angle),
+                j_q.filter(Junction.global_bend_angle <= max_angle),
+            )
+        if min_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt >= min_nt),
+                j_q.filter(Junction.total_nt >= min_nt),
+            )
+        if max_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt <= max_nt),
+                j_q.filter(Junction.total_nt <= max_nt),
+            )
+        if search_pdb:
+            h_q, j_q = (
+                h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")),
+                j_q.filter(Junction.pdb_id.like(f"%{search_pdb}")),
+            )
         if sequence:
             s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
-            h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
+            h_q, j_q = (
+                h_q.filter(
+                    or_(
+                        Helix.sequence_full.contains(s_up),
+                        Helix.sequence_full.contains(s_rev),
+                    )
+                ),
+                j_q.filter(
+                    or_(
+                        Junction.sequence.contains(s_up),
+                        Junction.sequence.contains(s_rev),
+                    )
+                ),
+            )
         if stacking_stem1 or stacking_stem2:
             h_q = h_q.filter(Helix.id < 0)
-            if stacking_stem1: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
-            if stacking_stem2: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
+            if stacking_stem1:
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"')
+                )
+            if stacking_stem2:
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"')
+                )
 
         # Fetch results
-        s_col = sort_by or 'pdb_id'
-        a_h, a_j = getattr(Helix, s_col, Helix.pdb_id), getattr(Junction, s_col, Junction.pdb_id)
-        h_res = h_q.with_entities(Helix.pdb_id, Helix.organism, Helix.method, Helix.resolution, Helix.segment_count_folder, Helix.total_nt, Helix.global_bend_angle, a_h).all()
-        j_res = j_q.with_entities(Junction.pdb_id, Junction.organism, Junction.method, Junction.resolution, Junction.segment_count_folder, Junction.total_nt, Junction.global_bend_angle, a_j).all()
-        
+        s_col = sort_by or "pdb_id"
+        a_h, a_j = (
+            getattr(Helix, s_col, Helix.pdb_id),
+            getattr(Junction, s_col, Junction.pdb_id),
+        )
+        h_res = h_q.with_entities(
+            Helix.pdb_id,
+            Helix.organism,
+            Helix.method,
+            Helix.resolution,
+            Helix.segment_count_folder,
+            Helix.total_nt,
+            Helix.global_bend_angle,
+            a_h,
+        ).all()
+        j_res = j_q.with_entities(
+            Junction.pdb_id,
+            Junction.organism,
+            Junction.method,
+            Junction.resolution,
+            Junction.segment_count_folder,
+            Junction.total_nt,
+            Junction.global_bend_angle,
+            a_j,
+        ).all()
+
         combined = []
-        for r in h_res: combined.append([r[0], r[1], r[2], r[3], 'HELIX', r[4], r[5], r[6], r[7]])
-        for r in j_res: combined.append([r[0], r[1], r[2], r[3], 'JUNCTION', r[4], r[5], r[6], r[7]])
-        
+        for r in h_res:
+            combined.append([r[0], r[1], r[2], r[3], "HELIX", r[4], r[5], r[6], r[7]])
+        for r in j_res:
+            combined.append(
+                [r[0], r[1], r[2], r[3], "JUNCTION", r[4], r[5], r[6], r[7]]
+            )
+
         # Sort combined results
         def sort_key(x):
             val = x[8]
-            if val is None: return "" if isinstance(val, str) else -1.0
+            if val is None:
+                return "" if isinstance(val, str) else -1.0
             return val
-        
+
         combined.sort(key=sort_key, reverse=(sort_order == "desc"))
-        
+
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['CIF ID', 'Source/Molecule', 'Method', 'Res. (A)', 'Nts Count', 'Bend Angle (deg)', 'Type', 'Segment Count'])
+        writer.writerow(
+            [
+                "CIF ID",
+                "Source/Molecule",
+                "Method",
+                "Res. (A)",
+                "Nts Count",
+                "Bend Angle (deg)",
+                "Type",
+                "Segment Count",
+            ]
+        )
         for r in combined:
-            writer.writerow([
-                r[0],                              # CIF ID
-                r[1] or "Unknown",                 # Source/Molecule
-                r[2] or "N/A",                     # Method
-                f"{r[3]:.2f}" if r[3] is not None else "-", # Res.
-                r[6],                              # Nts Count
-                f"{r[7]:.1f}" if r[7] is not None else "-", # Bend Angle
-                r[4],                              # Type (HELIX/JUNCTION)
-                r[5]                               # Segment Count
-            ])
-        
+            writer.writerow(
+                [
+                    r[0],  # CIF ID
+                    r[1] or "Unknown",  # Source/Molecule
+                    r[2] or "N/A",  # Method
+                    f"{r[3]:.2f}" if r[3] is not None else "-",  # Res.
+                    r[6],  # Nts Count
+                    f"{r[7]:.1f}" if r[7] is not None else "-",  # Bend Angle
+                    r[4],  # Type (HELIX/JUNCTION)
+                    r[5],  # Segment Count
+                ]
+            )
+
         return PlainTextResponse(output.getvalue(), media_type="text/csv")
+
 
 @app.post("/api/download-zip")
 async def download_zip(file_paths: List[str]):
@@ -268,50 +555,111 @@ async def download_zip(file_paths: List[str]):
             full_path = os.path.join(os.getcwd(), path)
             if os.path.exists(full_path):
                 zip_file.write(full_path, os.path.basename(full_path))
-    
+
     zip_buffer.seek(0)
     return StreamingResponse(
-        zip_buffer, 
+        zip_buffer,
         media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": "attachment; filename=RNAbridge_results.zip"}
+        headers={"Content-Disposition": "attachment; filename=RNAbridge_results.zip"},
     )
+
 
 @app.get("/api/export-zip")
 async def export_zip(
-    segment_type: Optional[List[str]] = Query(None), motif_type: Optional[List[str]] = Query(None),
-    min_angle: Optional[float] = Query(None), max_angle: Optional[float] = Query(None),
-    min_nt: Optional[int] = Query(None), max_nt: Optional[int] = Query(None),
-    search_pdb: Optional[str] = Query(None), sequence: Optional[str] = Query(None),
-    stacking_stem1: Optional[str] = Query(None), stacking_stem2: Optional[str] = Query(None)
+    segment_type: Optional[List[str]] = Query(None),
+    motif_type: Optional[List[str]] = Query(None),
+    min_angle: Optional[float] = Query(None),
+    max_angle: Optional[float] = Query(None),
+    min_nt: Optional[int] = Query(None),
+    max_nt: Optional[int] = Query(None),
+    search_pdb: Optional[str] = Query(None),
+    sequence: Optional[str] = Query(None),
+    stacking_stem1: Optional[str] = Query(None),
+    stacking_stem2: Optional[str] = Query(None),
 ):
     """Exports all filtered results as a ZIP file."""
     with SessionLocal() as session:
         actual = segment_type or motif_type or []
         h_q, j_q = session.query(Helix), session.query(Junction)
-        
+
         if actual:
-            h_q = h_q.filter(or_(*[Helix.segment_count_folder.contains(t) for t in actual]))
+            h_q = h_q.filter(
+                or_(*[Helix.segment_count_folder.contains(t) for t in actual])
+            )
             j_f = []
             for t in actual:
-                if t == '8plus-junctions': j_f.append(and_(~Junction.segment_count_folder.contains('3-way'), ~Junction.segment_count_folder.contains('4-way'), ~Junction.segment_count_folder.contains('5-way'), ~Junction.segment_count_folder.contains('6-way'), ~Junction.segment_count_folder.contains('7-way'), Junction.segment_count_folder.contains('way-junction')))
-                else: j_f.append(Junction.segment_count_folder.contains(t))
+                if t == "8plus-junctions":
+                    j_f.append(
+                        and_(
+                            ~Junction.segment_count_folder.contains("3-way"),
+                            ~Junction.segment_count_folder.contains("4-way"),
+                            ~Junction.segment_count_folder.contains("5-way"),
+                            ~Junction.segment_count_folder.contains("6-way"),
+                            ~Junction.segment_count_folder.contains("7-way"),
+                            Junction.segment_count_folder.contains("way-junction"),
+                        )
+                    )
+                else:
+                    j_f.append(Junction.segment_count_folder.contains(t))
             j_q = j_q.filter(or_(*j_f))
-        
-        if min_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle >= min_angle), j_q.filter(Junction.global_bend_angle >= min_angle)
-        if max_angle is not None: h_q, j_q = h_q.filter(Helix.global_bend_angle <= max_angle), j_q.filter(Junction.global_bend_angle <= max_angle)
-        if min_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt >= min_nt), j_q.filter(Junction.total_nt >= min_nt)
-        if max_nt is not None: h_q, j_q = h_q.filter(Helix.total_nt <= max_nt), j_q.filter(Junction.total_nt <= max_nt)
-        if search_pdb: h_q, j_q = h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")), j_q.filter(Junction.pdb_id.like(f"%{search_pdb}"))
+
+        if min_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle >= min_angle),
+                j_q.filter(Junction.global_bend_angle >= min_angle),
+            )
+        if max_angle is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.global_bend_angle <= max_angle),
+                j_q.filter(Junction.global_bend_angle <= max_angle),
+            )
+        if min_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt >= min_nt),
+                j_q.filter(Junction.total_nt >= min_nt),
+            )
+        if max_nt is not None:
+            h_q, j_q = (
+                h_q.filter(Helix.total_nt <= max_nt),
+                j_q.filter(Junction.total_nt <= max_nt),
+            )
+        if search_pdb:
+            h_q, j_q = (
+                h_q.filter(Helix.pdb_id.like(f"%{search_pdb}")),
+                j_q.filter(Junction.pdb_id.like(f"%{search_pdb}")),
+            )
         if sequence:
             s_up, s_rev = sequence.upper(), sequence.upper()[::-1]
-            h_q, j_q = h_q.filter(or_(Helix.sequence_full.contains(s_up), Helix.sequence_full.contains(s_rev))), j_q.filter(or_(Junction.sequence.contains(s_up), Junction.sequence.contains(s_rev)))
+            h_q, j_q = (
+                h_q.filter(
+                    or_(
+                        Helix.sequence_full.contains(s_up),
+                        Helix.sequence_full.contains(s_rev),
+                    )
+                ),
+                j_q.filter(
+                    or_(
+                        Junction.sequence.contains(s_up),
+                        Junction.sequence.contains(s_rev),
+                    )
+                ),
+            )
         if stacking_stem1 or stacking_stem2:
             h_q = h_q.filter(Helix.id < 0)
-            if stacking_stem1: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"'))
-            if stacking_stem2: j_q = j_q.filter(Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"'))
+            if stacking_stem1:
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem1.lower()}"')
+                )
+            if stacking_stem2:
+                j_q = j_q.filter(
+                    Junction.coaxial_pairs.contains(f'"{stacking_stem2.lower()}"')
+                )
 
-        results = h_q.with_entities(Helix.path_cif, Helix.path_pml).all() + j_q.with_entities(Junction.path_cif, Junction.path_pml).all()
-        
+        results = (
+            h_q.with_entities(Helix.path_cif, Helix.path_pml).all()
+            + j_q.with_entities(Junction.path_cif, Junction.path_pml).all()
+        )
+
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for r in results:
@@ -320,13 +668,16 @@ async def export_zip(
                         full_path = os.path.join(os.getcwd(), path)
                         if os.path.exists(full_path):
                             zip_file.write(full_path, os.path.basename(full_path))
-        
+
         zip_buffer.seek(0)
         return StreamingResponse(
-            zip_buffer, 
+            zip_buffer,
             media_type="application/x-zip-compressed",
-            headers={"Content-Disposition": "attachment; filename=RNAbridge_all_results.zip"}
+            headers={
+                "Content-Disposition": "attachment; filename=RNAbridge_all_results.zip"
+            },
         )
+
 
 @app.get("/api/stats")
 async def get_global_stats():
@@ -334,40 +685,57 @@ async def get_global_stats():
     with SessionLocal() as session:
         max_nt_h = session.query(func.max(Helix.total_nt)).scalar() or 0
         max_nt_j = session.query(func.max(Junction.total_nt)).scalar() or 0
-        
+
         # Determine max junction degree (way)
         max_way = 0
         j_folders = session.query(Junction.segment_count_folder).distinct().all()
         for (f,) in j_folders:
             try:
-                if 'way' in f:
-                    val = int(f.split('-')[0])
-                    if val > max_way: max_way = val
-            except: pass
-            
+                if "way" in f:
+                    val = int(f.split("-")[0])
+                    if val > max_way:
+                        max_way = val
+            except Exception:
+                pass
+
         return {"max_nt": max(max_nt_h, max_nt_j), "max_way": max_way}
+
 
 @app.get("/api/ids")
 async def get_all_ids():
     """Returns a sorted list of all unique PDB IDs present in the database."""
     with SessionLocal() as session:
-        ids = session.query(Helix.pdb_id).distinct().all() + session.query(Junction.pdb_id).distinct().all()
+        ids = (
+            session.query(Helix.pdb_id).distinct().all()
+            + session.query(Junction.pdb_id).distinct().all()
+        )
         return sorted(list(set([r[0] for r in ids if r[0]])))
+
 
 @app.get("/api/files/{file_path:path}")
 async def get_file(file_path: str):
     """Serves static files (JSON, SVG, CIF, PML) from the local filesystem."""
     path = os.path.join(os.getcwd(), file_path)
     if os.path.exists(path):
-        mime = "application/json" if path.endswith(".json") else "image/svg+xml" if path.endswith(".svg") else "application/octet-stream"
+        mime = (
+            "application/json"
+            if path.endswith(".json")
+            else "image/svg+xml"
+            if path.endswith(".svg")
+            else "application/octet-stream"
+        )
         return FileResponse(path, media_type=mime)
     raise HTTPException(status_code=404)
+
 
 # Serve built frontend if exists
 if os.path.exists("dist"):
     app.mount("/", StaticFiles(directory="dist", html=True), name="static")
+
     @app.exception_handler(404)
-    async def custom_404_handler(request, __): return FileResponse("dist/index.html")
+    async def custom_404_handler(request, __):
+        return FileResponse("dist/index.html")
+
 
 if __name__ == "__main__":
     import uvicorn
@@ -376,6 +744,7 @@ if __name__ == "__main__":
     # Handle OpenAPI export command
     if len(sys.argv) > 1 and sys.argv[1] == "export":
         from fastapi.openapi.utils import get_openapi
+
         openapi_schema = get_openapi(
             title=app.title,
             version=app.version,
