@@ -19,12 +19,25 @@ def get_motif_sort_key(m):
 
 def stems_match_strict(s1, s2):
     """
-    Performs a strict comparison between two stems using the serial index of the first nucleotide.
+    Performs a strict comparison between two stems by checking if they share 
+    any nucleotide serial index at their boundary points (5p/3p first/last).
     """
     try:
-        ser1 = s1.get("strand5p", {}).get("first", {}).get("serial")
-        ser2 = s2.get("strand5p", {}).get("first", {}).get("serial")
-        return ser1 is not None and ser2 is not None and str(ser1) == str(ser2)
+        def get_serials(s):
+            res = set()
+            for st in ["strand5p", "strand3p"]:
+                strand = s.get(st, {})
+                for pos in ["first", "last"]:
+                    val = strand.get(pos)
+                    # Support both enriched dict and raw serial
+                    ser = val.get("serial") if isinstance(val, dict) else val
+                    if ser is not None:
+                        res.add(int(ser))
+            return res
+        
+        set1 = get_serials(s1)
+        set2 = get_serials(s2)
+        return bool(set1 & set2)
     except Exception:
         return False
 

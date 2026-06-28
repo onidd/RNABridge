@@ -852,7 +852,7 @@ class GeometryCalculator:
     def get_stem_axis_cached(
         cif_path: str, stem_data: Dict, label: str = "tmp"
     ) -> Optional[List[float]]:
-        """Retrieves helical axis with internal caching to avoid redundant X3DNA runs."""
+        """Retrieves helical axis with internal caching and orienting it 5' -> 3'."""
         sel = GeometryCalculator.get_stem_selection(stem_data)
         if not sel:
             return None
@@ -866,6 +866,28 @@ class GeometryCalculator:
             axis = GeometryCalculator.get_helical_axis(tmp_pdb)
             if os.path.exists(tmp_pdb):
                 os.remove(tmp_pdb)
+
+            if axis:
+                # Orient axis 5' -> 3' based on C1' atoms
+                s5p_f = stem_data["strand5p"].get("first", {})
+                s5p_l = stem_data["strand5p"].get("last", {})
+                sel_f = f"full_struct and chain {s5p_f.get('chain')} and resi {s5p_f.get('number')} and name C1'"
+                sel_l = f"full_struct and chain {s5p_l.get('chain')} and resi {s5p_l.get('number')} and name C1'"
+
+                GeometryCalculator.load_structure(cif_path)
+                coords_f = cmd.get_coords(sel_f)
+                coords_l = cmd.get_coords(sel_l)
+
+                if coords_f is not None and len(coords_f) > 0 and coords_l is not None and len(coords_l) > 0:
+                    v_ref = [
+                        coords_l[0][0] - coords_f[0][0],
+                        coords_l[0][1] - coords_f[0][1],
+                        coords_l[0][2] - coords_f[0][2],
+                    ]
+                    dot_ref = sum(a * b for a, b in zip(axis, v_ref))
+                    if dot_ref < 0:
+                        axis = [-x for x in axis]
+
             GeometryCalculator._axis_cache[cache_key] = axis
             return axis
         except Exception:
@@ -879,7 +901,7 @@ class GeometryCalculator:
         if not v1 or not v2:
             return None
         dot = max(-1.0, min(1.0, sum(a * b for a, b in zip(v1, v2))))
-        return round(math.degrees(math.acos(abs(dot))), 2)
+        return round(math.degrees(math.acos(dot)), 2)
 
     @staticmethod
     def validate_junction_compactness(loop_strands: List[Dict], mapping: Dict) -> bool:
@@ -923,6 +945,11 @@ class GeometryCalculator:
 
                 n_curr, n_next = Utils.to_int(ac["number"]), Utils.to_int(an["number"])
                 if n_curr is None or n_next is None:
+                    return False
+
+                # Strict DNA check: Reject if any nucleotide is DNA (DA, DC, DG, DT)
+                if (ac.get("name") or "").upper() in ["DA", "DC", "DG", "DT"] or \
+                   (an.get("name") or "").upper() in ["DA", "DC", "DG", "DT"]:
                     return False
 
                 diff = n_next - n_curr
@@ -1462,7 +1489,7 @@ class Visualizer:
             json.dump(
                 {
                     "drawingAlgorithm": "NAVIEW",
-                    "stackingArrowPlacement": "second-partner",
+                    "stackingArrowPlacement": "opposing",
                     "stackingArrowGap": 8.0,
                     "nucleotides": nucleotides,
                     "basePairs": base_pairs,

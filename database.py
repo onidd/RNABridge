@@ -4,9 +4,24 @@ from pathlib import Path
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from rnabridge import Utils, MetadataProvider
-from config import CIF_DIR, JSON_DIR, OUTPUT_DIR, DATABASE_URL
+from config import CIF_DIR, JSON_DIR, OUTPUT_DIR, DATABASE_URL, BASE_DIR
 
 Base = declarative_base()
+
+CACHE_FILE = BASE_DIR / "metadata_cache.json"
+
+def load_metadata_cache():
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_metadata_cache(cache):
+    with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f, indent=4)
 
 
 class Helix(Base):
@@ -238,7 +253,10 @@ def update_database(session, root_dir):
         existing_j[j.path_json] = j
         existing_j[os.path.abspath(j.path_json)] = j
 
-    metadata_cache, bpseq_cache, batch_size = {}, {}, 200
+    metadata_cache = load_metadata_cache()
+    bpseq_cache, batch_size = {}, 200
+    cache_modified = False
+
     for i in range(0, len(json_files), batch_size):
         batch = json_files[i : i + batch_size]
         for path in batch:
@@ -261,7 +279,10 @@ def update_database(session, root_dir):
                 continue
 
             if pdb_id not in metadata_cache:
+                print(f"   -> Fetching metadata for {pdb_id} from PDB...")
                 metadata_cache[pdb_id] = MetadataProvider.fetch_metadata(pdb_id)
+                cache_modified = True
+            
             mol, org, res, met = metadata_cache[pdb_id]
 
             try:
@@ -325,6 +346,9 @@ def update_database(session, root_dir):
                     )
                     session.add(j)
         session.commit()
+        if cache_modified:
+            save_metadata_cache(metadata_cache)
+            cache_modified = False
         print(
             f"Database progress: {min(i + batch_size, len(json_files))}/{len(json_files)}"
         )
