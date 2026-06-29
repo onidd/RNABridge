@@ -322,20 +322,28 @@ class Utils:
 
 class Core:
     """Core RNA structural logic and classification."""
+    @staticmethod
+    def _has_pseudoknot_char(structure: str) -> bool:
+        """Checks for ANY pseudoknot marker: bracket pairs ([{<>}]) AND letter-coded
+        higher-order pseudoknot levels (A-Z / a-z) used in extended dot-bracket notation.
+        Plain '(' ')' '.' chars are never pseudoknot markers."""
+        return any(c in structure for c in ["[", "]", "{", "}", "<", ">"]) or any(
+            c.isalpha() for c in structure
+        )
 
     @staticmethod
     def classify_motif(loop_strands: List[Dict]) -> Optional[str]:
         """Classifies an RNA loop into HAIRPIN, BULGE, INTERNAL_LOOP, or N-WAY_JUNCTION."""
         if len(loop_strands) == 1:
             s = loop_strands[0]
-            if any(c in s.get("structure", "") for c in ["[", "]", "{", "}"]):
+            if Core._has_pseudoknot_char(s.get("structure", "")):
                 return None
             if "." in s.get("structure", ""):
                 return "HAIRPIN"
             return None
         if len(loop_strands) == 2:
             for s in loop_strands:
-                if any(c in s.get("structure", "") for c in ["[", "]", "{", "}"]):
+                if Core._has_pseudoknot_char(s.get("structure", "")):
                     return None
             has_dots = [("." in s.get("structure", "")) for s in loop_strands]
             if has_dots[0] and has_dots[1]:
@@ -345,9 +353,7 @@ class Core:
             return None
         if len(loop_strands) >= 3:
             for s in loop_strands:
-                if any(
-                    c in s.get("structure", "") for c in ["[", "]", "{", "}", "<", ">"]
-                ):
+                if Core._has_pseudoknot_char(s.get("structure", "")):
                     return None
             return f"{len(loop_strands)}_WAY_JUNCTION"
         return None
@@ -1544,12 +1550,15 @@ class HelicesBuilder:
         v = [
             m
             for m in motifs
-            if m.get("modules", {}).get("stacking", {}).get("status")
-            in ["FULL", "BULGE-IN", "BULGE-OUT"]
-            or (
-                m.get("meta", {}).get("type") == "HAIRPIN"
-                and m.get("modules", {}).get("stacking", {}).get("status")
-                in ["PARTIAL", "FULL", "SKIPPED"]
+            if "WAY_JUNCTION" not in (m.get("meta", {}).get("type") or "")
+            and (
+                m.get("modules", {}).get("stacking", {}).get("status")
+                in ["FULL", "BULGE-IN", "BULGE-OUT"]
+                or (
+                    m.get("meta", {}).get("type") == "HAIRPIN"
+                    and m.get("modules", {}).get("stacking", {}).get("status")
+                    in ["PARTIAL", "FULL", "SKIPPED"]
+                )
             )
         ]
         if not v:

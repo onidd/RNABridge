@@ -121,6 +121,8 @@ def main():
                     continue
 
                 stems_data = {}
+                seen_stem_ids = set()
+                duplicate_stem_found = False
                 for i in range(len(m_data["strands"])):
                     curr_end = Utils.to_int(m_data["strands"][i]["last"])
                     next_start = Utils.to_int(
@@ -132,6 +134,10 @@ def main():
                         or stems_end_map.get(next_start)
                         or stems_end_map.get(next_start - 1)
                     )
+                    if st is not None:
+                        if id(st) in seen_stem_ids:
+                            duplicate_stem_found = True
+                        seen_stem_ids.add(id(st))
                     stems_data[f"stem_{i + 1}"] = (
                         {
                             "strand5p": st.get("strand5p", {}),
@@ -140,6 +146,14 @@ def main():
                         if st
                         else {}
                     )
+
+                # Safety-check: a proper N-way junction must be flanked by N distinct
+                # stems. If the same physical stem matched two different boundary
+                # slots (e.g. a pseudoknot single-bp contact resolved twice while
+                # walking around the loop), the junction's topology is inconsistent
+                # - skip it entirely rather than emit duplicated/misleading stems.
+                if duplicate_stem_found:
+                    continue
 
                 bend_angles = GeometryCalculator.get_junction_bend_angles(
                     cif_path, stems_data
@@ -262,7 +276,12 @@ def main():
             )
             if f is None or l is None:
                 continue
-            stem1 = stems_end_map.get(f) or stems_start_map.get(l)
+            stem1 = (
+                stems_end_map.get(f)
+                or stems_end_map.get(f - 1)
+                or stems_start_map.get(l)
+                or stems_start_map.get(l + 1)
+            )
             if stem1:
                 interactions = rnabridge.Core.find_interactions(
                     m_data["strands"], pairs_idx
@@ -329,26 +348,33 @@ def main():
                 continue
 
             if m_type == "HAIRPIN":
+                log_step = step
                 if st_stat == "SKIPPED":
                     cur_comps.append(comp)
-                    step += 1
                     status = "ACCEPTED"
+                    step += 1
+                    cur_hist.append(
+                        {
+                            "step": log_step,
+                            "phase": "EXTENSION",
+                            "m_id": [cur_comps[-2]["m_id"], comp["m_id"]],
+                            "checks": {"stacking": st_stat},
+                            "status": status,
+                        }
+                    )
                 else:
                     status = "REJECTED_STACKING"
+                    cur_hist.append(
+                        {
+                            "step": log_step,
+                            "phase": "EXTENSION",
+                            "m_id": [cur_comps[-1]["m_id"], comp["m_id"]],
+                            "checks": {"stacking": st_stat},
+                            "status": status,
+                        }
+                    )
                     final_helices.append({"components": cur_comps, "history": cur_hist})
                     cur_comps, cur_hist, step = [], [], 1
-                cur_hist.append(
-                    {
-                        "step": step,
-                        "phase": "EXTENSION",
-                        "m_id": [
-                            cur_comps[-1]["m_id"] if cur_comps else None,
-                            comp["m_id"],
-                        ],
-                        "checks": {"stacking": st_stat},
-                        "status": status,
-                    }
-                )
                 continue
 
             if loc_angle is None or loc_angle >= max_angle_limit:
