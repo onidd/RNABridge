@@ -1590,7 +1590,7 @@ class HelicesBuilder:
         """Formats grouped motifs into the final helix JSON structure."""
         res = []
         for idx, g in enumerate(groups, 1):
-            if len(g) < 2:
+            if len(g) < 1:
                 continue
             f, l = g[0], g[-1]
             s1f = (
