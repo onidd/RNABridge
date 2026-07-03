@@ -83,6 +83,7 @@ class Junction(Base):
     stacking_status = Column(String)
     coaxial_pairs = Column(String)
     bend_angles = Column(String)
+    stacking_paths = Column(Text)
     global_bend_angle = Column(Float)
     sequence = Column(Text)
     path_json = Column(String, index=True, unique=True)
@@ -117,7 +118,40 @@ def setup_database(engine):
             conn.execute(
                 text("ALTER TABLE junctions ADD COLUMN global_bend_angle FLOAT")
             )
+        if "stacking_paths" not in cols_j:
+            conn.execute(text("ALTER TABLE junctions ADD COLUMN stacking_paths TEXT"))
     return sessionmaker(bind=engine)()
+
+def get_auth_label_from_cache(bp_cache, pdb_id, ser):
+    """Converts a raw serial number to its PDB auth-number label (e.g. 'A1005')."""
+    entry = bp_cache.get(pdb_id, {}).get(str(ser))
+    if entry and entry.get("auth"):
+        auth = entry["auth"]
+        num, icode = (
+            auth.get("number", ""),
+            auth.get("icode") or auth.get("insertion_code"),
+        )
+        icode_str = (
+            icode if icode and str(icode).strip() not in [".", "?", ""] else ""
+        )
+        return f"{auth.get('chain', '')}{num}{icode_str}"
+    return str(ser)
+
+
+def convert_junction_stacking_paths(raw_paths, bp_cache, pdb_id):
+    """Converts every serial number inside a junction's stacking_paths dict to
+    its auth label, matching what's shown on the VARNA 2D rendering."""
+    converted = {}
+    for k, paths in raw_paths.items():
+        if paths and isinstance(paths[0], list):
+            converted[k] = [
+                [get_auth_label_from_cache(bp_cache, pdb_id, s) for s in p]
+                for p in paths
+            ]
+        else:
+            converted[k] = [get_auth_label_from_cache(bp_cache, pdb_id, s) for s in paths]
+    return converted
+
 
 
 def add_helix_segments(session, h_obj, h_data, pdb_id, bp_cache):
@@ -300,7 +334,7 @@ def update_database(session, root_dir):
                         method=met,
                         segment_count_folder=path.parent.name,
                         total_nt=h_d.get("total_nt"),
-                        global_bend_angle=h_d.get("global_measures", {}).get("angle"),
+                        global_bend_angle=h_d.get("global_measures", {}).get("angle") if path.parent.name != '1-segment-helis' else (h_d.get("global_measures", {}).get("angle") or 0.0),
                         path_json=ps_rel,
                         path_cif=to_rel(path.with_suffix(".cif")),
                         path_pml=to_rel(path.with_suffix(".pml")),
@@ -319,7 +353,20 @@ def update_database(session, root_dir):
                     )
                     valid = [v for v in angs.values() if v is not None]
                     best_angle = min(valid) if valid else None
-                    j = Junction(
+
+                    if pdb_id not in bpseq_cache:
+                        orig = Path(JSON_DIR) / f"{pdb_id}.json"
+                        bpseq_cache[pdb_id] = (
+                            json.load(open(orig, "r")).get("bpseq_index", {})
+                            if orig.exists()
+                            else {}
+                        )
+                    conv_stacking_paths = convert_junction_stacking_paths(
+                        j_d.get("modules", {}).get("stacking", {}).get("stacking_paths", {}),
+                        bpseq_cache,
+                        pdb_id,
+                    )
+                    j = Junction(                        
                         pdb_id=pdb_id,
                         molecule=mol,
                         organism=org,
@@ -337,7 +384,8 @@ def update_database(session, root_dir):
                             .get("coaxial_pairs", [])
                         ),
                         bend_angles=json.dumps(angs),
-                        global_bend_angle=best_angle,
+                        stacking_paths=json.dumps(conv_stacking_paths),
+                        global_bend_angle=best_angle,    
                         sequence=Utils.get_full_sequence_from_data(j_d),
                         path_json=ps_rel,
                         path_cif=to_rel(path.with_suffix(".cif")),

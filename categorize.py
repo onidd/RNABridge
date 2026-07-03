@@ -63,7 +63,7 @@ def run_categorization():
                         unique_stems.add(i_f.get("serial"))
 
                 n = len(unique_stems)
-                if n < 2:
+                if n < 1:
                     continue
 
                 h_id, save_dir = (

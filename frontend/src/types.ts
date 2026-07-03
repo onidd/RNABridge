@@ -45,6 +45,7 @@ export interface Result {
 }
 
 export const SEGMENT_TYPES = [
+  { label: 'Helices (1 segment)', value: '1-segment-helis' },
   { label: 'Helices (2 segments)', value: '2-segment-helis' },
   { label: 'Helices (3 segments)', value: '3-segment-helis' },
   { label: 'Helices (4 segments)', value: '4-segment-helis' },

@@ -138,6 +138,13 @@ def format_junction_response(j: Junction) -> Dict[str, Any]:
         pairs = json.loads(j.coaxial_pairs) if j.coaxial_pairs else []
     except Exception:
         pairs = []
+    try:
+        raw_paths = json.loads(j.stacking_paths) if j.stacking_paths else {}
+        # Same key normalization as `angles` (stem_1_stem_2 -> stem_1_2), so the
+        # frontend can match a path to its corresponding angle via one key.
+        paths = {k.replace("_stem_", "_"): v for k, v in raw_paths.items()}
+    except Exception:
+        paths = {}
 
     stems_info, comp3d = {}, []
     if j.path_json and os.path.exists(j.path_json):
@@ -178,6 +185,7 @@ def format_junction_response(j: Junction) -> Dict[str, Any]:
             "stacking_status": j.stacking_status,
             "coaxial_pairs": pairs,
             "all_angles": angles,
+            "stacking_paths": paths,
             "stems": stems_info,
             "components": comp3d,
         },

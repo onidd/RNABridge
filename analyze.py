@@ -123,10 +123,11 @@ def main():
                 stems_data = {}
                 seen_stem_ids = set()
                 duplicate_stem_found = False
-                for i in range(len(m_data["strands"])):
+                n_strands = len(m_data["strands"])
+                for i in range(n_strands):
                     curr_end = Utils.to_int(m_data["strands"][i]["last"])
                     next_start = Utils.to_int(
-                        m_data["strands"][(i + 1) % len(m_data["strands"])]["first"]
+                        m_data["strands"][(i + 1) % n_strands]["first"]
                     )
                     st = (
                         stems_start_map.get(curr_end)
@@ -138,7 +139,11 @@ def main():
                         if id(st) in seen_stem_ids:
                             duplicate_stem_found = True
                         seen_stem_ids.add(id(st))
-                    stems_data[f"stem_{i + 1}"] = (
+                    # Shift numbering so the wrap-around stem (i == n_strands-1,
+                    # the outer stem that opens the junction when reading 5'->3')
+                    # becomes stem_1, and the rest follow in true 5'->3' order.
+                    stem_number = ((i + 1) % n_strands) + 1
+                    stems_data[f"stem_{stem_number}"] = (
                         {
                             "strand5p": st.get("strand5p", {}),
                             "strand3p": st.get("strand3p", {}),
@@ -184,6 +189,12 @@ def main():
 
                 stacking_data["coaxial_pairs"] = valid_coaxial_pairs
                 stacking_data["status"] = "FULL" if valid_coaxial_pairs else "NO"
+                stacking_data["stacking_paths"] = {
+                    f"{p[0]}_{p[1]}": stacking_data.get("stacking_paths", {}).get(
+                        f"{p[0]}_{p[1]}", []
+                    )
+                    for p in valid_coaxial_pairs
+                }
 
                 # Drop the junction entirely if it doesn't have at least one valid coaxial pair
                 if not valid_coaxial_pairs:

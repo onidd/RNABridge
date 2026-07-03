@@ -715,9 +715,13 @@ const App: React.FC = () => {
     searchStats.angles.forEach((item: any) => {
       const binIndex = Math.min(Math.floor(item.bin / 5), 9);
       const f = item.folder || "";
+
+      // Skip 1-segment-helis in histogram
+      if (f.includes('1-segment')) return;
+
       let typeKey = '';
-      
       if (f.includes('2-segment')) typeKey = '2 seg';
+
       else if (f.includes('3-segment')) typeKey = '3 seg';
       else if (f.includes('segment-helis')) typeKey = '4 seg+';
       else if (f.includes('3-way')) typeKey = '3 way';
@@ -734,7 +738,8 @@ const App: React.FC = () => {
 
   const TYPE_COLORS: Record<string, string> = {
     '2 seg': '#13c2c2',
-    '3 seg': '#52c41a', 
+    '3 seg': '#52c41a',
+ 
     '4 seg+': '#237804', 
     '3 way': '#1890ff', 
     '4 way': '#722ed1', 
@@ -743,15 +748,19 @@ const App: React.FC = () => {
   };
 
   const preparePieData = () => {
-    const counts: Record<string, number> = { 
-      '2 seg': 0, '3 seg': 0, '4 seg+': 0, 
-      '3 way': 0, '4 way': 0, '5 way': 0, '6 way+': 0 
+    const counts: Record<string, number> = {
+      '2 seg': 0, '3 seg': 0, '4 seg+': 0,
+      '3 way': 0, '4 way': 0, '5 way': 0, '6 way+': 0
     };
-    
     if (!searchStats || !searchStats.pie) return [];
 
     Object.entries(searchStats.pie).forEach(([f, count]: [string, any]) => {
+      // Skip 1-segment-helis in pie chart
+      if (f.includes('1-segment')) return;
+
       if (f.includes('2-segment')) counts['2 seg'] += count;
+      else if (f.includes('3-segment')) counts['3 seg'] += count;
+
       else if (f.includes('3-segment')) counts['3 seg'] += count;
       else if (f.includes('segment-helis')) counts['4 seg+'] += count;
       else if (f.includes('3-way')) counts['3 way'] += count;
@@ -1042,7 +1051,9 @@ const App: React.FC = () => {
       const details = record.details || {};
       const pairs = details.coaxial_pairs || [];
       const angles = details.all_angles || {};
+      const stackingPaths = details.stacking_paths || {};
       const stems = details.stems || {};
+
 
       const dataSource = (Array.isArray(pairs) ? pairs : []).map((pair: any, idx: number) => {
         if (!pair || pair.length < 2) return null;
@@ -1055,12 +1066,13 @@ const App: React.FC = () => {
         const id1 = s1_key.split('_').pop();
         const id2 = s2_key.split('_').pop();
         const angle = angles[`stem_${id1}_${id2}`] ?? angles[`stem_${id2}_${id1}`];
-
+	const path = stackingPaths[`stem_${id1}_${id2}`] ?? stackingPaths[`stem_${id2}_${id1}`];
         return {
           key: `stack-pair-${idx}`,
           id: `${pair[0].toUpperCase()} - ${pair[1].toUpperCase()}`,
           chain: stem1?.strand5p?.first?.chain || '-',
           angle: angle,
+	  path,
           stem1,
           stem2
         };
@@ -1132,13 +1144,47 @@ const App: React.FC = () => {
           key: 'bridge1',
           render: (_: any, record: any) => renderSingleBridge(record.stem1)
         },
-        { 
+	{ 
           title: 'Sequence 2', 
           key: 'bridge2',
           render: (_: any, record: any) => renderSingleBridge(record.stem2)
         },
-      ];
+        { 
+          title: 'Stacking Path', 
+          dataIndex: 'path', 
+          key: 'path',
+          width: 140,
+          render: (path: any) => {
+            if (!path || !Array.isArray(path) || path.length === 0) return '-';
 
+            const formatPath = (p: any[]) => p.join('→');
+
+            if (Array.isArray(path[0])) {
+              // Multiple independent stacking paths between the same stem pair
+              return (
+                <Tooltip title={path.map((p: any[], i: number) => `${i + 1}: ${formatPath(p)}`).join('  ')}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {path.map((p: any[], i: number) => (
+                      <Text key={i} code style={{ fontSize: '11px', cursor: 'help', whiteSpace: 'nowrap' }}>
+                        {p.length > 0 ? `${i + 1}: ${p[0]}...${p[p.length-1]}` : `${i+1}: []`}
+                      </Text>
+                    ))}
+                  </div>
+                </Tooltip>
+              );
+            } else {
+              const displayStr = path.length > 3 ? `${path[0]}→${path[1]}...${path[path.length-1]}` : formatPath(path);
+              return (
+                <Tooltip title={formatPath(path)}>
+                  <Text code style={{ fontSize: '11px', cursor: 'help' }}>
+                    {displayStr}
+                  </Text>
+                </Tooltip>
+              );
+            }
+          }
+        },
+      ];
       return (
         <div style={{ margin: '10px 0', padding: '15px', background: '#fafafa', borderRadius: '4px', border: '1px solid #eee' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>

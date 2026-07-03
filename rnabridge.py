@@ -729,7 +729,7 @@ class Stacking:
         strands = motif.get("location", {}).get("strands", [])
         n = len(strands)
         if n < 3:
-            return {"status": "ERROR", "coaxial_pairs": []}
+            return {"status": "ERROR", "coaxial_pairs": [], "stacking_paths": {}}
         valid_nodes = set()
         for s in strands:
             f, l = Utils.to_int(s.get("first")), Utils.to_int(s.get("last"))
@@ -740,16 +740,42 @@ class Stacking:
         for i in range(1, n + 1):
             e1 = Utils.to_int(strands[i - 1].get("last"))
             e2 = Utils.to_int(strands[i % n].get("first"))
-            stem_ends[i] = [x for x in (e1, e2) if x is not None]
-            valid_nodes.update(stem_ends[i])
+            # Same wrap-around shift as in analyze.py's stems_data build, so
+            # stem labels here match the ones used for stems_data/bend_angles.
+            stem_number = (i % n) + 1
+            stem_ends[stem_number] = [x for x in (e1, e2) if x is not None]
+            valid_nodes.update(stem_ends[stem_number])
 
         pairs = []
+        stacking_paths = {}
         for i, j in itertools.combinations(range(1, n + 1), 2):
-            if Stacking._has_stacking_path(
+            has_path1, _, path1 = Stacking._get_stacking_path_info(
                 stem_ends[i], stem_ends[j], valid_nodes, stacking_index
-            ):
-                pairs.append([f"stem_{i}", f"stem_{j}"])
-        return {"status": "FULL" if pairs else "NO", "coaxial_pairs": pairs}
+            )
+            if not has_path1:
+                continue
+
+            found = [path1]
+            remaining_nodes = valid_nodes - set(path1[1:-1])
+            start_used, end_used = path1[0], path1[-1]
+            other_starts = [x for x in stem_ends[i] if x != start_used]
+            other_targets = [x for x in stem_ends[j] if x != end_used]
+            if other_starts and other_targets:
+                has_path2, _, path2 = Stacking._get_stacking_path_info(
+                    other_starts, other_targets, remaining_nodes, stacking_index
+                )
+                if has_path2:
+                    found.append(path2)
+
+            pairs.append([f"stem_{i}", f"stem_{j}"])
+            stacking_paths[f"stem_{i}_stem_{j}"] = found
+
+        return {
+            "status": "FULL" if pairs else "NO",
+            "coaxial_pairs": pairs,
+            "stacking_paths": stacking_paths,
+        }
+
 
     @staticmethod
     def check_hairpin_stacking(motif: dict, stacking_index: set) -> dict:
@@ -1461,20 +1487,23 @@ class Visualizer:
 
         # --- DRAW STACKING PATHS (JUMPS) ---
         v_stackings = []
+        core_stack_nodes = set()
 
-        def add_jump_stacks(p_list):
+        def add_jump_stacks(p_list, track=True):
             if not p_list or not isinstance(p_list, list):
                 return
-            # Handle list of paths (internal loops) or single path (bulges)
             if p_list and isinstance(p_list[0], list):
                 for sub_path in p_list:
-                    add_jump_stacks(sub_path)
+                    add_jump_stacks(sub_path, track)
                 return
-
             for i in range(len(p_list) - 1):
                 n1, n2 = Utils.to_int(p_list[i]), Utils.to_int(p_list[i + 1])
-                # Only draw a stacking line if there is a jump in the sequence
-                if n1 is not None and n2 is not None and abs(n1 - n2) > 1:
+                if n1 is None or n2 is None:
+                    continue
+                if track:
+                    core_stack_nodes.add(n1)
+                    core_stack_nodes.add(n2)
+                if abs(n1 - n2) > 1:
                     vid1, vid2 = ser_to_v_id.get(n1), ser_to_v_id.get(n2)
                     if vid1 and vid2:
                         v_stackings.append(
@@ -1482,14 +1511,27 @@ class Visualizer:
                         )
 
         if is_junction:
+            for path in (
+                data.get("modules", {})
+                .get("stacking", {})
+                .get("stacking_paths", {})
+                .values()
+            ):
+                add_jump_stacks(path, track=True)
             for ext_h in data.get("extended_helices", []):
                 for comp in ext_h.get("components", []):
                     if comp.get("type") in ["BULGE", "INTERNAL_LOOP"]:
-                        add_jump_stacks(comp.get("metrics", {}).get("stacking_path"))
+                        add_jump_stacks(
+                            comp.get("metrics", {}).get("stacking_path"), track=False
+                        )
+            for ser in core_stack_nodes:
+                v_id = ser_to_v_id.get(ser)
+                if v_id:
+                    nucleotides[v_id - 1]["outlineColor"] = "255,0,0"
         else:
             for comp in data.get("components", []):
                 if comp.get("type") in ["BULGE", "INTERNAL_LOOP"]:
-                    add_jump_stacks(comp.get("metrics", {}).get("stacking_path"))
+                    add_jump_stacks(comp.get("metrics", {}).get("stacking_path"), track=False)
 
         with open(out_path, "w", encoding="UTF-8") as f:
             json.dump(
