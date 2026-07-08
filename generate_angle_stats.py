@@ -66,7 +66,7 @@ def generate_angle_distribution_table(result_dir: Path, max_angle_limit: float):
         
         # Przetwarzanie Helis
         for helix in data.get("helices", []):
-            angle = helix.get("global_bend_angle")
+            angle = helix.get("global_measures", {}).get("angle")
             
             if angle is None:
                 continue
@@ -82,7 +82,9 @@ def generate_angle_distribution_table(result_dir: Path, max_angle_limit: float):
 
         # Przetwarzanie Złącz
         for junction in data.get("junctions", []):
-            angle = junction.get("global_bend_angle")
+            bend_angles = junction.get("modules", {}).get("geometry", {}).get("bend_angles", {})
+            valid_angles = [v for v in bend_angles.values() if v is not None]
+            angle = min(valid_angles) if valid_angles else None
             
             if angle is None:
                 continue
