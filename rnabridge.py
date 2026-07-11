@@ -779,7 +779,11 @@ class Stacking:
 
     @staticmethod
     def check_hairpin_stacking(motif: dict, stacking_index: set) -> dict:
-        """Analyzes stacking in a hairpin loop (returns SKIPPED as hairpins are helix terminators)."""
+        """Checks whether the hairpin loop has a genuine stacking path
+        connecting its two flanking ends (f to l) through the loop's
+        interior. FULL means such a path exists (the loop is stacked/bridged,
+        whether directly or via intermediate - possibly non-canonical -
+        nucleotides). NO means no such path exists (the stacking is broken)."""
         s = motif.get("strands", [{}])[0]
         f, l = Utils.to_int(s.get("first")), Utils.to_int(s.get("last"))
         n2d = s.get("structure", "").count(".")
@@ -788,12 +792,18 @@ class Stacking:
                 "status": "ERROR",
                 "metrics": {"size_2d": [0, 0], "size_3d": [0, 0], "stacking_path": []},
             }
+
+        valid_nodes = set(range(min(f, l), max(f, l) + 1))
+        has_path, stacked_count, path = Stacking._get_stacking_path_info(
+            [f], [l], valid_nodes, stacking_index
+        )
+
         return {
-            "status": "SKIPPED",
+            "status": "FULL" if has_path else "NO",
             "metrics": {
                 "size_2d": [n2d, 0],
-                "size_3d": [n2d, 0],
-                "stacking_path": [f, l],
+                "size_3d": [stacked_count, 0],
+                "stacking_path": path,
             },
         }
 
@@ -932,6 +942,9 @@ class GeometryCalculator:
         """Calculates the angle in degrees between two 3D vectors."""
         if not v1 or not v2:
             return None
+        if v1 == v2:
+            return 0.0
+
         dot = max(-1.0, min(1.0, sum(a * b for a, b in zip(v1, v2))))
         return round(math.degrees(math.acos(dot)), 2)
 
@@ -1527,7 +1540,7 @@ class Visualizer:
             for ser in core_stack_nodes:
                 v_id = ser_to_v_id.get(ser)
                 if v_id:
-                    nucleotides[v_id - 1]["outlineColor"] = "255,0,0"
+                    nucleotides[v_id - 1]["innerColor"] = "255,0,0"
         else:
             for comp in data.get("components", []):
                 if comp.get("type") in ["BULGE", "INTERNAL_LOOP"]:
@@ -1556,6 +1569,9 @@ class HelicesBuilder:
         cif_path: str, motif_start: Dict, motif_end: Dict
     ) -> Optional[float]:
         """Calculates the bend angle between the first and last stem of a super-helix."""
+        if motif_start == motif_end:
+            return 0.0
+
         ctx_start = (
             motif_start.get("location", {}).get("context", {}).get("upstream", {})
         )
@@ -1598,8 +1614,7 @@ class HelicesBuilder:
                 in ["FULL", "BULGE-IN", "BULGE-OUT"]
                 or (
                     m.get("meta", {}).get("type") == "HAIRPIN"
-                    and m.get("modules", {}).get("stacking", {}).get("status")
-                    in ["PARTIAL", "FULL", "SKIPPED"]
+                    and m.get("modules", {}).get("stacking", {}).get("status") == "FULL"
                 )
             )
         ]
