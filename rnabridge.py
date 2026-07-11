@@ -355,7 +355,7 @@ class Core:
             for s in loop_strands:
                 if Core._has_pseudoknot_char(s.get("structure", "")):
                     return None
-            return f"{len(loop_strands)}_WAY_JUNCTION"
+            return f"{len(loop_strands)_WAY_JUNCTION}"
         return None
 
     @staticmethod
@@ -847,6 +847,10 @@ class GeometryCalculator:
             stem["strand5p"].get("first", {}),
             stem["strand5p"].get("last", {}),
         )
+        s3p_f, s3p_l = (
+            stem["strand3p"].get("first", {}),
+            stem["strand3p"].get("last", {}),
+            )
         s3p_f, s3p_l = (
             stem["strand3p"].get("first", {}),
             stem["strand3p"].get("last", {}),
