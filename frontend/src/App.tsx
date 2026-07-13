@@ -861,7 +861,12 @@ const App: React.FC = () => {
       title: 'Bend Angle (°)',
       dataIndex: 'global_bend_angle',
       key: 'global_bend_angle',
-      render: (val: number | null) => val !== null ? <Tag color={val > 45 ? 'volcano' : 'cyan'}>{val.toFixed(1)}°</Tag> : '-',
+      render: (val: number | null, record: Result) => {
+        if (val === 0 && record.segment_count_folder?.includes('1-segment')) {
+          return '-';
+        } 
+        return val !== null ? <Tag color={val > 45 ? 'volcano' : 'cyan'}>{val.toFixed(1)}°</Tag> : '-';
+      },
       sorter: true,
     },
     {
@@ -979,7 +984,6 @@ const App: React.FC = () => {
           key: 'stacking_path',
           width: 140,
           render: (path: any, seg: any) => {
-            if (seg.type.toUpperCase() === 'HAIRPIN') return '-';
             if (!path || !Array.isArray(path) || path.length === 0) return '-';
             
             const formatPath = (p: any[]) => p.join('→');

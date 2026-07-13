@@ -340,7 +340,7 @@ def main():
             safe_loc = round(loc_angle, 2) if loc_angle is not None else None
 
             if not cur_comps:
-                accepted = (m_type == "HAIRPIN" and st_stat == "SKIPPED") or (
+                accepted = (m_type == "HAIRPIN" and st_stat == "FULL") or (
                     m_type != "HAIRPIN"
                     and loc_angle is not None
                     and loc_angle < max_angle_limit
@@ -360,7 +360,7 @@ def main():
 
             if m_type == "HAIRPIN":
                 log_step = step
-                if st_stat == "SKIPPED":
+                if st_stat == "FULL":
                     cur_comps.append(comp)
                     status = "ACCEPTED"
                     step += 1
